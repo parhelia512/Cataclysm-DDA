@@ -15,6 +15,9 @@
 #include "stomach.h"
 #include "string_formatter.h"
 
+static const itype_id itype_atomic_lamp( "atomic_lamp" );
+static const itype_id itype_duffelbag( "duffelbag" );
+
 void activity_schedule::setup( avatar &guy ) const
 {
     // Start our task, for however long the schedule says.
@@ -89,8 +92,8 @@ weariness_events do_activity( tasklist tasks, bool do_clear_avatar )
 
     avatar &guy = get_avatar();
     // Ensure we have enough light to see
-    item bag( "duffelbag" );
-    item light( "atomic_lamp" );
+    item bag( itype_duffelbag );
+    item light( itype_atomic_lamp );
     guy.worn.wear_item( guy, bag, false, false );
     guy.i_add( light );
     // How long we've been doing activities for
@@ -112,7 +115,7 @@ weariness_events do_activity( tasklist tasks, bool do_clear_avatar )
             // Consume food, become weary, etc
             guy.update_body();
             // Start each turn with a fresh set of moves
-            guy.moves = 100;
+            guy.set_moves( 100 );
             task.do_turn( guy );
         }
         // Cancel our activity, now that we're done

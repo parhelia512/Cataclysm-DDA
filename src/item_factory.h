@@ -224,6 +224,9 @@ class Item_factory
          */
         void migrate_item( const itype_id &id, item &obj );
 
+        /** applies a migration to the item if one exists with the given from_variant */
+        void migrate_item_from_variant( item &obj, const std::string &from_variant );
+
         /**
          * Check if an item type is known to the Item_factory.
          * @param id Item type id (@ref itype::id).
@@ -237,13 +240,6 @@ class Item_factory
          * @param id Item type id (@ref itype::id).
          */
         const itype *find_template( const itype_id &id ) const;
-
-        /**
-         * Add a passed in itype to the collection of item types.
-         * If the item type overrides an existing type, the existing type is deleted first.
-         * @param def The new item type, must not be null.
-         */
-        void add_item_type( const itype &def );
 
         /**
          * Check if an iuse is known to the Item_factory.
@@ -305,6 +301,10 @@ class Item_factory
                         const std::string &src );
 
         /**
+        * Load ememory_size, which is automatically calculated for books
+        */
+        void load_ememory_size( const JsonObject &jo, itype &def );
+        /**
          * Load item the item slot if present in json.
          * Checks whether the json object has a member of the given name and if so, loads the item
          * slot from that object. If the member does not exists, nothing is done.
@@ -326,12 +326,14 @@ class Item_factory
         void emplace_usage( std::map<std::string, use_function> &container,
                             const std::string &iuse_id );
 
-        void set_use_methods_from_json( const JsonObject &jo, const std::string &member,
-                                        std::map<std::string, use_function> &use_methods, std::map<std::string, int> &ammo_scale );
+        void set_use_methods_from_json( const JsonObject &jo, const std::string &src,
+                                        const std::string &member, std::map<std::string, use_function> &use_methods,
+                                        std::map<std::string, int> &ammo_scale );
 
         use_function usage_from_string( const std::string &type ) const;
 
-        std::pair<std::string, use_function> usage_from_object( const JsonObject &obj );
+        std::pair<std::string, use_function> usage_from_object( const JsonObject &obj,
+                const std::string & );
 
         /**
          * Helper function for Item_group loading

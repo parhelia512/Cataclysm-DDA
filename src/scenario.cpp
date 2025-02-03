@@ -12,6 +12,7 @@
 #include "mutation.h"
 #include "options.h"
 #include "past_games_info.h"
+#include "past_achievements_info.h"
 #include "profession.h"
 #include "rng.h"
 #include "start_location.h"
@@ -110,7 +111,7 @@ void scenario::load( const JsonObject &jo, const std::string_view )
     if( !was_loaded ) {
 
         int _start_of_cataclysm_hour = 0;
-        int _start_of_cataclysm_day = 61;
+        int _start_of_cataclysm_day = 1 + get_option<int>( "SEASON_LENGTH" ) / 3 * 2;
         season_type _start_of_cataclysm_season = SPRING;
         int _start_of_cataclysm_year = 1;
         if( jo.has_member( "start_of_cataclysm" ) ) {
@@ -128,7 +129,7 @@ void scenario::load( const JsonObject &jo, const std::string_view )
                                       ;
 
         int _start_of_game_hour = 8;
-        int _start_of_game_day = 61;
+        int _start_of_game_day = 1 + get_option<int>( "SEASON_LENGTH" ) / 3 * 2;
         season_type _start_of_game_season = SPRING;
         int _start_of_game_year = 1;
         if( jo.has_member( "start_of_game" ) ) {
@@ -212,7 +213,7 @@ void scenario::reset()
     all_scenarios.reset();
 }
 
-void scenario::check_definitions()
+void scenario::finalize()
 {
     for( const scenario &scen : all_scenarios.get_all() ) {
         scen.check_definition();
@@ -372,7 +373,9 @@ void scen_blacklist::load( const JsonObject &jo, const std::string_view )
 void scen_blacklist::finalize()
 {
     std::vector<string_id<scenario>> all_scens;
-    for( const scenario &scen : scenario::get_all() ) {
+    std::vector<scenario> all_scenarios = scenario::get_all();
+    all_scens.reserve( all_scenarios.size() );
+    for( const scenario &scen : all_scenarios ) {
         all_scens.emplace_back( scen.ident() );
     }
     for( const string_id<scenario> &sc : sc_blacklist.scenarios ) {
@@ -654,19 +657,15 @@ ret_val<void> scenario::can_afford( const scenario &current_scenario, const int 
 ret_val<void> scenario::can_pick() const
 {
     // if meta progression is disabled then skip this
-    if( get_past_games().achievement( achievement_achievement_arcade_mode ) ||
+    if( get_past_achievements().is_completed( achievement_achievement_arcade_mode ) ||
         !get_option<bool>( "META_PROGRESS" ) ) {
         return ret_val<void>::make_success();
     }
 
     if( _requirement ) {
-        const achievement_completion_info *other_games = get_past_games().achievement(
-                    _requirement.value()->id );
-        if( !other_games ) {
-            return ret_val<void>::make_failure(
-                       _( "You must complete the achievement \"%s\" to unlock this scenario." ),
-                       _requirement.value()->name() );
-        } else if( other_games->games_completed.empty() ) {
+        const bool has_req = get_past_achievements().is_completed(
+                                 _requirement.value()->id );
+        if( !has_req ) {
             return ret_val<void>::make_failure(
                        _( "You must complete the achievement \"%s\" to unlock this scenario." ),
                        _requirement.value()->name() );

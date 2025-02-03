@@ -3,7 +3,6 @@
     "type": "mapgen",
     "method": "json",
     "om_terrain": "corpse_neck",
-    "weight": 100,
     "object": {
       "fill_ter": "t_nm_floor_flesh",
       "rows": [
@@ -78,7 +77,6 @@
     "type": "mapgen",
     "method": "json",
     "om_terrain": "corpse_neck_center",
-    "weight": 150,
     "object": {
       "fill_ter": "t_nm_floor_flesh",
       "rows": [
@@ -213,32 +211,6 @@
     "om_terrain": "corpse_head",
     "object": {
       "fill_ter": "t_nm_floor_flesh",
-      "rows": [
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        ",
-        "                        "
-      ],
       "palettes": [ "nether_monster_palette" ],
       "terrain": { " ": [ [ "t_nm_floor_flesh", 25 ], [ "t_nm_ichor_sh", 3 ] ] },
       "furniture": {

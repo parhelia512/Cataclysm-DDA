@@ -35,9 +35,7 @@
 #include "debug.h"
 #include "filesystem.h"
 #include "game.h"
-#include "help.h"
 #include "json.h"
-#include "loading_ui.h"
 #include "map.h"
 #include "messages.h"
 #include "options.h"
@@ -61,9 +59,10 @@ static bool dont_save{ false };
 static option_overrides_t option_overrides_for_test_suite;
 static std::string error_fmt = "human-readable";
 
-static std::chrono::system_clock::time_point start;
-static std::chrono::system_clock::time_point end;
+static std::chrono::system_clock::time_point start_time;
+static std::chrono::system_clock::time_point end_time;
 static bool error_during_initialization{ false };
+static bool fail_to_init_game_state{ false };
 
 static bool needs_game{ false };
 
@@ -128,8 +127,6 @@ static void init_global_game_state( const std::vector<mod_id> &mods,
     g->new_game = true;
     g->load_static_data();
 
-    get_help().load();
-
     world_generator->set_active_world( nullptr );
     world_generator->init();
     // Using unicode characters in the world name to test path encoding
@@ -146,9 +143,8 @@ static void init_global_game_state( const std::vector<mod_id> &mods,
     calendar::set_eternal_season( get_option<bool>( "ETERNAL_SEASON" ) );
     calendar::set_season_length( get_option<int>( "SEASON_LENGTH" ) );
 
-    loading_ui ui( false );
-    g->load_core_data( ui );
-    g->load_world_modfiles( ui );
+    g->load_core_data();
+    g->load_world_modfiles();
 
     get_avatar() = avatar();
     get_avatar().create( character_type::NOW );
@@ -162,7 +158,7 @@ static void init_global_game_state( const std::vector<mod_id> &mods,
     map &here = get_map();
     // TODO: fix point types
     here.load( tripoint_abs_sm( here.get_abs_sub() ), false );
-    get_avatar().move_to( tripoint_abs_ms( tripoint_zero ) );
+    get_avatar().move_to( tripoint_abs_ms::zero );
 
     get_weather().update_weather();
 }
@@ -203,7 +199,14 @@ struct CataListener : Catch::TestEventListenerBase {
 
     void testRunStarting( Catch::TestRunInfo const & ) override {
         if( needs_game ) {
-            init_global_game_state( mods, option_overrides_for_test_suite, user_dir );
+            try {
+                init_global_game_state( mods, option_overrides_for_test_suite, user_dir );
+            } catch( ... ) {
+                DebugLog( D_INFO, DC_ALL ) << "Fail to initialize global game state" << std::endl;
+                // NOLINTNEXTLINE(cata-tests-must-restore-global-state)
+                fail_to_init_game_state = true;
+                throw;
+            }
             // NOLINTNEXTLINE(cata-tests-must-restore-global-state)
             error_during_initialization = debug_has_error_been_observed();
 
@@ -211,17 +214,22 @@ struct CataListener : Catch::TestEventListenerBase {
         } else {
             DebugLog( D_INFO, DC_ALL ) << "Running Catch2 session:" << std::endl;
         }
-        end = start = std::chrono::system_clock::now();
+        end_time = start_time = std::chrono::system_clock::now();
     }
 
     void testRunEnded( Catch::TestRunStats const & ) override {
-        end = std::chrono::system_clock::now();
+        end_time = std::chrono::system_clock::now();
     }
 
     void sectionStarting( Catch::SectionInfo const &sectionInfo ) override {
         TestEventListenerBase::sectionStarting( sectionInfo );
         // Initialize the cata RNG with the Catch seed for reproducible tests
-        rng_set_engine_seed( m_config->rngSeed() );
+        const unsigned int seed = m_config->rngSeed();
+        if( seed ) {
+            rng_set_engine_seed( seed );
+        } else {
+            rng_set_engine_seed( rng_get_first_seed() );
+        }
         // Clear the message log so on test failures we see only messages from
         // during that test
         Messages::clear_messages();
@@ -419,7 +427,7 @@ int main( int argc, const char *argv[] )
 
     if( world_generator ) {
         std::string world_name = world_generator->active_world->world_name;
-        if( result == 0 || dont_save ) {
+        if( result == 0 || dont_save || fail_to_init_game_state ) {
             world_generator->delete_world( world_name, true );
         } else {
             if( g->save() ) {
@@ -431,7 +439,7 @@ int main( int argc, const char *argv[] )
         }
     }
 
-    std::chrono::duration<double> elapsed_seconds = end - start;
+    std::chrono::duration<double> elapsed_seconds = end_time - start_time;
     DebugLog( D_INFO, DC_ALL ) << "Finished in " << elapsed_seconds.count() << " seconds";
 
     if( seed ) {

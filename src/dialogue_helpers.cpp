@@ -3,8 +3,12 @@
 #include <string>
 
 #include "dialogue.h"
+#include "rng.h"
+#include "talker.h"
 
-std::optional<std::string> maybe_read_var_value( const var_info &info, const dialogue &d )
+template<class T>
+std::optional<std::string> maybe_read_var_value(
+    const abstract_var_info<T> &info, const_dialogue const &d, int call_depth )
 {
     global_variables &globvars = get_globals();
     switch( info.type ) {
@@ -13,12 +17,19 @@ std::optional<std::string> maybe_read_var_value( const var_info &info, const dia
         case var_type::context:
             return d.maybe_get_value( info.name );
         case var_type::u:
-            return d.actor( false )->maybe_get_value( info.name );
+            return d.const_actor( false )->maybe_get_value( info.name );
         case var_type::npc:
-            return d.actor( true )->maybe_get_value( info.name );
+            return d.const_actor( true )->maybe_get_value( info.name );
         case var_type::var: {
             std::optional<std::string> const var_val = d.maybe_get_value( info.name );
-            return var_val ? maybe_read_var_value( process_variable( *var_val ), d ) : std::nullopt;
+            if( call_depth > 1000 && var_val ) {
+                debugmsg( "Possible infinite loop detected: var_val points to itself or forms a cycle.  %s->%s %s",
+                          info.name, var_val.value(), d.get_callstack() );
+                return std::nullopt;
+            } else {
+                return var_val ? maybe_read_var_value( process_variable( *var_val ), d,
+                                                       call_depth + 1 ) : std::nullopt;
+            }
         }
         case var_type::faction:
         case var_type::party:
@@ -28,9 +39,22 @@ std::optional<std::string> maybe_read_var_value( const var_info &info, const dia
     return std::nullopt;
 }
 
-std::string read_var_value( const var_info &info, const dialogue &d )
+template
+std::optional<std::string> maybe_read_var_value( const var_info &, const_dialogue const &,
+        int call_depth );
+template std::optional<std::string> maybe_read_var_value( const translation_var_info &,
+        const_dialogue const &, int call_depth );
+
+template<>
+std::string read_var_value( const var_info &info, const_dialogue const &d )
 {
     return maybe_read_var_value( info, d ).value_or( info.default_val );
+}
+
+template<>
+std::string read_var_value( const translation_var_info &info, const_dialogue const &d )
+{
+    return maybe_read_var_value( info, d ).value_or( info.default_val.translated() );
 }
 
 var_info process_variable( const std::string &type )
@@ -44,6 +68,9 @@ var_info process_variable( const std::string &type )
     } else if( type.compare( 0, 4, "npc_" ) == 0 ) {
         vt = var_type::npc;
         ret_str = type.substr( 4, type.size() - 4 );
+    } else if( type.compare( 0, 2, "n_" ) == 0 ) {
+        vt = var_type::npc;
+        ret_str = type.substr( 2, type.size() - 2 );
     } else if( type.compare( 0, 7, "global_" ) == 0 ) {
         vt = var_type::global;
         ret_str = type.substr( 7, type.size() - 7 );
@@ -61,11 +88,11 @@ var_info process_variable( const std::string &type )
         ret_str = type.substr( 1, type.size() - 1 );
     }
 
-    return var_info( vt, "npctalk_var_" + ret_str );
+    return var_info( vt, ret_str );
 }
 
 template<>
-std::string str_or_var::evaluate( dialogue const &d ) const
+std::string str_or_var::evaluate( const_dialogue const &d ) const
 {
     if( function.has_value() ) {
         return function.value()( d );
@@ -82,9 +109,6 @@ std::string str_or_var::evaluate( dialogue const &d ) const
             return default_val.value();
         }
         std::string var_name = var_val.value().name;
-        if( var_name.find( "npctalk_var" ) != std::string::npos ) {
-            var_name = var_name.substr( 12 );
-        }
         debugmsg( "No default value provided for str_or_var_part while encountering unused "
                   "variable %s.  Add a \"default_str\" member to prevent this.  %s",
                   var_name, d.get_callstack() );
@@ -95,7 +119,7 @@ std::string str_or_var::evaluate( dialogue const &d ) const
 }
 
 template<>
-std::string translation_or_var::evaluate( dialogue const &d ) const
+std::string translation_or_var::evaluate( const_dialogue const &d ) const
 {
     if( function.has_value() ) {
         return function.value()( d ).translated();
@@ -112,9 +136,6 @@ std::string translation_or_var::evaluate( dialogue const &d ) const
             return default_val.value().translated();
         }
         std::string var_name = var_val.value().name;
-        if( var_name.find( "npctalk_var" ) != std::string::npos ) {
-            var_name = var_name.substr( 12 );
-        }
         debugmsg( "No default value provided for str_or_var_part while encountering unused "
                   "variable %s.  Add a \"default_str\" member to prevent this.  %s",
                   var_name, d.get_callstack() );
@@ -124,7 +145,14 @@ std::string translation_or_var::evaluate( dialogue const &d ) const
     return "";
 }
 
-double dbl_or_var_part::evaluate( dialogue &d ) const
+std::string str_translation_or_var::evaluate( const_dialogue const &d ) const
+{
+    return std::visit( [&d]( auto &&val ) {
+        return val.evaluate( d );
+    }, val );
+}
+
+double dbl_or_var_part::evaluate( const_dialogue const &d ) const
 {
     if( dbl_val.has_value() ) {
         return dbl_val.value();
@@ -138,22 +166,9 @@ double dbl_or_var_part::evaluate( dialogue &d ) const
             return default_val.value();
         }
         std::string var_name = var_val.value().name;
-        if( var_name.find( "npctalk_var" ) != std::string::npos ) {
-            var_name = var_name.substr( 12 );
-        }
         debugmsg( "No default value provided for dbl_or_var_part while encountering unused "
                   "variable %s.  Add a \"default\" member to prevent this.  %s",
                   var_name, d.get_callstack() );
-        return 0;
-    }
-    if( arithmetic_val.has_value() ) {
-        arithmetic_val.value()( d );
-        var_info info = var_info( var_type::global, "temp_var" );
-        std::string val = read_var_value( info, d );
-        if( !val.empty() ) {
-            return std::stof( val );
-        }
-        debugmsg( "No valid arithmetic value for dbl_or_var_part.  %s", d.get_callstack() );
         return 0;
     }
     if( math_val ) {
@@ -163,7 +178,7 @@ double dbl_or_var_part::evaluate( dialogue &d ) const
     return 0;
 }
 
-double dbl_or_var::evaluate( dialogue &d ) const
+double dbl_or_var::evaluate( const_dialogue const &d ) const
 {
     if( pair ) {
         return rng( min.evaluate( d ), max.evaluate( d ) );
@@ -171,7 +186,7 @@ double dbl_or_var::evaluate( dialogue &d ) const
     return min.evaluate( d );
 }
 
-time_duration duration_or_var_part::evaluate( dialogue &d ) const
+time_duration duration_or_var_part::evaluate( const_dialogue const &d ) const
 {
     if( dur_val.has_value() ) {
         return dur_val.value();
@@ -187,24 +202,9 @@ time_duration duration_or_var_part::evaluate( dialogue &d ) const
             return default_val.value();
         }
         std::string var_name = var_val.value().name;
-        if( var_name.find( "npctalk_var" ) != std::string::npos ) {
-            var_name = var_name.substr( 12 );
-        }
         debugmsg( "No default value provided for duration_or_var_part while encountering unused "
                   "variable %s.  Add a \"default\" member to prevent this.  %s",
                   var_name, d.get_callstack() );
-        return 0_seconds;
-    }
-    if( arithmetic_val.has_value() ) {
-        arithmetic_val.value()( d );
-        var_info info = var_info( var_type::global, "temp_var" );
-        std::string val = read_var_value( info, d );
-        if( !val.empty() ) {
-            time_duration ret_val;
-            ret_val = time_duration::from_turns( std::stof( val ) );
-            return ret_val;
-        }
-        debugmsg( "No valid arithmetic value for duration_or_var_part.  %s", d.get_callstack() );
         return 0_seconds;
     }
     if( math_val ) {
@@ -214,7 +214,7 @@ time_duration duration_or_var_part::evaluate( dialogue &d ) const
     return 0_seconds;
 }
 
-time_duration duration_or_var::evaluate( dialogue &d ) const
+time_duration duration_or_var::evaluate( const_dialogue const &d ) const
 {
     if( pair ) {
         return rng( min.evaluate( d ), max.evaluate( d ) );

@@ -14,6 +14,7 @@
 #include "iuse_actor.h"
 #include "map.h"
 #include "monster.h"
+#include "options_helpers.h"
 #include "point.h"
 
 static const activity_id ACT_AIM( "ACT_AIM" );
@@ -32,6 +33,8 @@ static const efftype_id effect_tied( "tied" );
 
 static const field_type_str_id field_fd_smoke( "fd_smoke" );
 
+static const furn_str_id furn_f_safe_c( "f_safe_c" );
+static const furn_str_id furn_f_safe_l( "f_safe_l" );
 static const furn_str_id furn_test_f_boltcut1( "test_f_boltcut1" );
 static const furn_str_id furn_test_f_boltcut2( "test_f_boltcut2" );
 static const furn_str_id furn_test_f_boltcut3( "test_f_boltcut3" );
@@ -43,15 +46,24 @@ static const furn_str_id furn_test_f_oxytorch2( "test_f_oxytorch2" );
 static const furn_str_id furn_test_f_oxytorch3( "test_f_oxytorch3" );
 static const furn_str_id furn_test_f_prying1( "test_f_prying1" );
 
+static const item_group_id Item_spawn_data_test_edevices_compat( "test_edevices_compat" );
+static const item_group_id Item_spawn_data_test_edevices_incompat( "test_edevices_incompat" );
+static const item_group_id Item_spawn_data_test_edevices_power( "test_edevices_power" );
+static const item_group_id Item_spawn_data_test_edevices_recipes( "test_edevices_recipes" );
+static const item_group_id Item_spawn_data_test_edevices_standard( "test_edevices_standard" );
+
 static const itype_id itype_book_binder( "book_binder" );
 static const itype_id itype_glass_shard( "glass_shard" );
+static const itype_id itype_memory_card( "memory_card" );
 static const itype_id itype_oxyacetylene( "oxyacetylene" );
+static const itype_id itype_stethoscope( "stethoscope" );
 static const itype_id itype_tent_kit( "tent_kit" );
 static const itype_id itype_test_2x4( "test_2x4" );
 static const itype_id itype_test_backpack( "test_backpack" );
 static const itype_id itype_test_battery_disposable( "test_battery_disposable" );
 static const itype_id itype_test_boltcutter( "test_boltcutter" );
 static const itype_id itype_test_boltcutter_elec( "test_boltcutter_elec" );
+static const itype_id itype_test_efile_copiable( "test_efile_copiable" );
 static const itype_id itype_test_hacksaw( "test_hacksaw" );
 static const itype_id itype_test_hacksaw_elec( "test_hacksaw_elec" );
 static const itype_id itype_test_halligan( "test_halligan" );
@@ -65,7 +77,7 @@ static const itype_id itype_test_shears_off( "test_shears_off" );
 static const itype_id itype_test_weldtank( "test_weldtank" );
 static const itype_id itype_water_clean( "water_clean" );
 
-static const json_character_flag json_flag_SUPER_HEARING( "SUPER_HEARING" );
+static const json_character_flag json_flag_SAFECRACK_NO_TOOL( "SAFECRACK_NO_TOOL" );
 
 static const mtype_id mon_test_non_shearable( "mon_test_non_shearable" );
 static const mtype_id mon_test_shearable( "mon_test_shearable" );
@@ -81,8 +93,10 @@ static const quality_id qual_WELD( "WELD" );
 
 static const recipe_id recipe_water_clean( "water_clean" );
 
+static const skill_id skill_computer( "computer" );
 static const skill_id skill_traps( "traps" );
 
+static const ter_str_id ter_t_dirt( "t_dirt" );
 static const ter_str_id ter_t_wall( "t_wall" );
 static const ter_str_id ter_test_t_boltcut1( "test_t_boltcut1" );
 static const ter_str_id ter_test_t_boltcut2( "test_t_boltcut2" );
@@ -173,40 +187,40 @@ TEST_CASE( "safecracking", "[activity][safecracking]" )
         clear_avatar();
         clear_map();
 
-        tripoint safe;
-        dummy.setpos( safe + tripoint_east );
+        tripoint_bub_ms safe;
+        dummy.setpos( safe + tripoint::east );
 
         map &mp = get_map();
         dummy.activity = player_activity( safecracking_activity_actor( safe ) );
         dummy.activity.start_or_resume( dummy, false );
 
         GIVEN( "player without the required tools" ) {
-            mp.furn_set( safe, f_safe_l );
+            mp.furn_set( safe, furn_f_safe_l );
             REQUIRE( !dummy.cache_has_item_with( flag_SAFECRACK ) );
-            REQUIRE( !dummy.has_flag( json_flag_SUPER_HEARING ) );
+            REQUIRE( !dummy.has_flag( json_flag_SAFECRACK_NO_TOOL ) );
             REQUIRE( dummy.activity.id() == ACT_CRACKING );
-            REQUIRE( mp.furn( safe ) == f_safe_l );
+            REQUIRE( mp.furn( safe ) == furn_f_safe_l );
 
             WHEN( "player tries safecracking" ) {
                 process_activity( dummy );
                 THEN( "activity is canceled" ) {
-                    CHECK( mp.furn( safe ) == f_safe_l );
+                    CHECK( mp.furn( safe ) == furn_f_safe_l );
                 }
             }
         }
 
         GIVEN( "player has a stethoscope" ) {
-            dummy.i_add( item( "stethoscope" ) );
-            mp.furn_set( safe, f_safe_l );
+            dummy.i_add( item( itype_stethoscope ) );
+            mp.furn_set( safe, furn_f_safe_l );
             REQUIRE( dummy.cache_has_item_with( flag_SAFECRACK ) );
-            REQUIRE( !dummy.has_flag( json_flag_SUPER_HEARING ) );
+            REQUIRE( !dummy.has_flag( json_flag_SAFECRACK_NO_TOOL ) );
             REQUIRE( dummy.activity.id() == ACT_CRACKING );
-            REQUIRE( mp.furn( safe ) == f_safe_l );
+            REQUIRE( mp.furn( safe ) == furn_f_safe_l );
 
             WHEN( "player completes the safecracking activity" ) {
                 process_activity( dummy );
                 THEN( "safe is unlocked" ) {
-                    CHECK( mp.furn( safe ) == f_safe_c );
+                    CHECK( mp.furn( safe ) == furn_f_safe_c );
                 }
             }
         }
@@ -215,31 +229,31 @@ TEST_CASE( "safecracking", "[activity][safecracking]" )
             dummy.clear_worn();
             dummy.remove_weapon();
             dummy.add_bionic( bio_ears );
-            mp.furn_set( safe, f_safe_l );
+            mp.furn_set( safe, furn_f_safe_l );
             REQUIRE( !dummy.cache_has_item_with( flag_SAFECRACK ) );
-            REQUIRE( dummy.has_flag( json_flag_SUPER_HEARING ) );
+            REQUIRE( dummy.has_flag( json_flag_SAFECRACK_NO_TOOL ) );
             REQUIRE( dummy.activity.id() == ACT_CRACKING );
-            REQUIRE( mp.furn( safe ) == f_safe_l );
+            REQUIRE( mp.furn( safe ) == furn_f_safe_l );
 
             WHEN( "player completes the safecracking activity" ) {
                 process_activity( dummy );
                 THEN( "safe is unlocked" ) {
-                    CHECK( mp.furn( safe ) == f_safe_c );
+                    CHECK( mp.furn( safe ) == furn_f_safe_c );
                 }
             }
         }
 
         GIVEN( "player has a stethoscope" ) {
             dummy.clear_bionics();
-            dummy.i_add( item( "stethoscope" ) );
-            mp.furn_set( safe, f_safe_l );
+            dummy.i_add( item( itype_stethoscope ) );
+            mp.furn_set( safe, furn_f_safe_l );
             REQUIRE( dummy.cache_has_item_with( flag_SAFECRACK ) );
-            REQUIRE( !dummy.has_flag( json_flag_SUPER_HEARING ) );
+            REQUIRE( !dummy.has_flag( json_flag_SAFECRACK_NO_TOOL ) );
             REQUIRE( dummy.activity.id() == ACT_CRACKING );
-            REQUIRE( mp.furn( safe ) == f_safe_l );
+            REQUIRE( mp.furn( safe ) == furn_f_safe_l );
 
             WHEN( "player is safecracking" ) {
-                dummy.moves += dummy.get_speed();
+                dummy.mod_moves( dummy.get_speed() );
                 for( int i = 0; i < 100; ++i ) {
                     dummy.activity.do_turn( dummy );
                 }
@@ -251,7 +265,7 @@ TEST_CASE( "safecracking", "[activity][safecracking]" )
 
                     process_activity( dummy );
                     THEN( "activity is canceled" ) {
-                        CHECK( mp.furn( safe ) == f_safe_l );
+                        CHECK( mp.furn( safe ) == furn_f_safe_l );
                     }
                 }
             }
@@ -276,19 +290,19 @@ TEST_CASE( "safecracking", "[activity][safecracking]" )
         clear_avatar();
         clear_map();
 
-        tripoint safe;
-        dummy.setpos( safe + tripoint_east );
+        tripoint_bub_ms safe;
+        dummy.setpos( safe + tripoint::east );
 
         map &mp = get_map();
         dummy.activity = player_activity( safecracking_activity_actor( safe ) );
         dummy.activity.start_or_resume( dummy, false );
 
         GIVEN( "player cracks one safe" ) {
-            dummy.i_add( item( "stethoscope" ) );
-            mp.furn_set( safe, f_safe_l );
+            dummy.i_add( item( itype_stethoscope ) );
+            mp.furn_set( safe, furn_f_safe_l );
             REQUIRE( dummy.cache_has_item_with( flag_SAFECRACK ) );
             REQUIRE( dummy.activity.id() == ACT_CRACKING );
-            REQUIRE( mp.furn( safe ) == f_safe_l );
+            REQUIRE( mp.furn( safe ) == furn_f_safe_l );
 
             REQUIRE( !dummy.has_proficiency( proficiency_prof_safecracking ) );
 
@@ -298,7 +312,7 @@ TEST_CASE( "safecracking", "[activity][safecracking]" )
             const time_duration time_before = get_safecracking_time();
 
             process_activity( dummy );
-            REQUIRE( mp.furn( safe ) == f_safe_c );
+            REQUIRE( mp.furn( safe ) == furn_f_safe_c );
             THEN( "proficiency given is less than 90 minutes" ) {
                 const time_duration time_after = get_safecracking_time();
                 REQUIRE( time_after > 0_seconds );
@@ -321,10 +335,10 @@ TEST_CASE( "shearing", "[activity][shearing][animals]" )
         monster *mon;
         if( mon_shearable )
         {
-            mon = &spawn_test_monster( mon_test_shearable.str(), dummy.pos() + tripoint_north );
+            mon = &spawn_test_monster( mon_test_shearable.str(), dummy.pos_bub() + tripoint::north );
         } else
         {
-            mon = &spawn_test_monster( mon_test_non_shearable.str(), dummy.pos() + tripoint_north );
+            mon = &spawn_test_monster( mon_test_non_shearable.str(), dummy.pos_bub() + tripoint::north );
         }
 
         mon->friendly = -1;
@@ -341,7 +355,7 @@ TEST_CASE( "shearing", "[activity][shearing][animals]" )
             monster &mon = test_monster( true );
 
             REQUIRE( dummy.max_quality( qual_SHEAR ) <= 0 );
-            dummy.activity = player_activity( shearing_activity_actor( mon.pos(), false ) );
+            dummy.activity = player_activity( shearing_activity_actor( mon.pos_bub(), false ) );
             dummy.activity.start_or_resume( dummy, false );
 
             THEN( "shearing can't start" ) {
@@ -357,7 +371,7 @@ TEST_CASE( "shearing", "[activity][shearing][animals]" )
             dummy.i_add( item( itype_test_shears ) );
             REQUIRE( dummy.max_quality( qual_SHEAR ) == 1 );
 
-            dummy.activity = player_activity( shearing_activity_actor( mon.pos(), false ) );
+            dummy.activity = player_activity( shearing_activity_actor( mon.pos_bub(), false ) );
             dummy.activity.start_or_resume( dummy, false );
             REQUIRE( dummy.activity.id() == ACT_SHEARING );
 
@@ -380,12 +394,12 @@ TEST_CASE( "shearing", "[activity][shearing][animals]" )
             const use_function *use = elec_shears.type->get_use( "transform" );
             REQUIRE( use != nullptr );
             const iuse_transform *actor = dynamic_cast<const iuse_transform *>( use->get_actor_ptr() );
-            actor->use( &dummy, elec_shears, dummy.pos() );
+            actor->use( &dummy, elec_shears, dummy.pos_bub() );
 
             dummy.i_add( elec_shears );
             REQUIRE( dummy.max_quality( qual_SHEAR ) == 3 );
 
-            dummy.activity = player_activity( shearing_activity_actor( mon.pos(), false ) );
+            dummy.activity = player_activity( shearing_activity_actor( mon.pos_bub(), false ) );
             dummy.activity.start_or_resume( dummy, false );
             REQUIRE( dummy.activity.id() == ACT_SHEARING );
 
@@ -402,7 +416,7 @@ TEST_CASE( "shearing", "[activity][shearing][animals]" )
             dummy.i_add( item( itype_test_shears ) );
             REQUIRE( dummy.max_quality( qual_SHEAR ) == 1 );
 
-            dummy.activity = player_activity( shearing_activity_actor( mon.pos(), false ) );
+            dummy.activity = player_activity( shearing_activity_actor( mon.pos_bub(), false ) );
             dummy.activity.start_or_resume( dummy, false );
 
             THEN( "shearing can't start" ) {
@@ -413,6 +427,8 @@ TEST_CASE( "shearing", "[activity][shearing][animals]" )
 
     SECTION( "shearing losing tool" ) {
         GIVEN( "an electric tool with shearing quality three" ) {
+            map &here = get_map();
+
             clear_avatar();
             clear_map();
             monster &mon = test_monster( true );
@@ -426,23 +442,23 @@ TEST_CASE( "shearing", "[activity][shearing][animals]" )
             const use_function *use = elec_shears.type->get_use( "transform" );
             REQUIRE( use != nullptr );
             const iuse_transform *actor = dynamic_cast<const iuse_transform *>( use->get_actor_ptr() );
-            actor->use( &dummy, elec_shears, dummy.pos() );
+            actor->use( &dummy, elec_shears, dummy.pos_bub() );
 
             dummy.i_add( elec_shears );
             REQUIRE( dummy.max_quality( qual_SHEAR ) == 3 );
 
-            dummy.activity = player_activity( shearing_activity_actor( mon.pos(), false ) );
+            dummy.activity = player_activity( shearing_activity_actor( mon.pos_bub(), false ) );
             dummy.activity.start_or_resume( dummy, false );
             REQUIRE( dummy.activity.id() == ACT_SHEARING );
 
-            dummy.moves += dummy.get_speed();
+            dummy.mod_moves( dummy.get_speed() );
             for( int i = 0; i < 100; ++i ) {
                 dummy.activity.do_turn( dummy );
             }
 
             WHEN( "tool runs out of charges mid activity" ) {
                 for( int i = 0; i < 10000; ++i ) {
-                    dummy.process_items();
+                    dummy.process_items( &here );
                 }
 
                 CHECK( dummy.get_wielded_item()->ammo_remaining() == 0 );
@@ -471,7 +487,7 @@ TEST_CASE( "shearing", "[activity][shearing][animals]" )
             dummy.i_add( item( itype_test_shears ) );
             REQUIRE( dummy.max_quality( qual_SHEAR ) == 1 );
 
-            dummy.activity = player_activity( shearing_activity_actor( mon.pos(), false ) );
+            dummy.activity = player_activity( shearing_activity_actor( mon.pos_bub(), false ) );
             dummy.activity.start_or_resume( dummy, false );
             REQUIRE( dummy.activity.id() == ACT_SHEARING );
 
@@ -484,7 +500,7 @@ TEST_CASE( "shearing", "[activity][shearing][animals]" )
             WHEN( "shearing finishes" ) {
                 CHECK( dummy.activity.id() == ACT_NULL );
                 THEN( "player receives the items" ) {
-                    const map_stack items = get_map().i_at( dummy.pos() );
+                    const map_stack items = get_map().i_at( dummy.pos_bub() );
                     int count_amount = 0;
                     int count_random = 0;
                     int count_mass   = 0;
@@ -523,7 +539,7 @@ TEST_CASE( "shearing", "[activity][shearing][animals]" )
             dummy.i_add( item( itype_test_shears ) );
             REQUIRE( dummy.max_quality( qual_SHEAR ) == 1 );
 
-            dummy.activity = player_activity( shearing_activity_actor( mon.pos(), false ) );
+            dummy.activity = player_activity( shearing_activity_actor( mon.pos_bub(), false ) );
             dummy.activity.start_or_resume( dummy, false );
             REQUIRE( dummy.activity.id() == ACT_SHEARING );
 
@@ -544,7 +560,7 @@ TEST_CASE( "shearing", "[activity][shearing][animals]" )
             dummy.i_add( item( itype_test_shears ) );
             REQUIRE( dummy.max_quality( qual_SHEAR ) == 1 );
 
-            dummy.activity = player_activity( shearing_activity_actor( mon.pos(), true ) );
+            dummy.activity = player_activity( shearing_activity_actor( mon.pos_bub(), true ) );
             dummy.activity.start_or_resume( dummy, false );
             REQUIRE( dummy.activity.id() == ACT_SHEARING );
 
@@ -574,7 +590,7 @@ TEST_CASE( "boltcut", "[activity][boltcut]" )
     };
 
     auto setup_activity = [&dummy]( const item_location & torch ) -> void {
-        boltcutting_activity_actor act{tripoint_zero, torch};
+        boltcutting_activity_actor act{tripoint_bub_ms::zero, torch};
         act.testing = true;
         dummy.assign_activity( act );
     };
@@ -584,8 +600,8 @@ TEST_CASE( "boltcut", "[activity][boltcut]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, t_null );
-            REQUIRE( mp.ter( tripoint_zero ) == t_null );
+            mp.ter_set( tripoint_bub_ms::zero, ter_str_id::NULL_ID() );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_str_id::NULL_ID() );
 
             item_location boltcutter = setup_dummy();
             setup_activity( boltcutter );
@@ -599,8 +615,8 @@ TEST_CASE( "boltcut", "[activity][boltcut]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, t_dirt );
-            REQUIRE( mp.ter( tripoint_zero ) == t_dirt );
+            mp.ter_set( tripoint_bub_ms::zero, ter_t_dirt );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_t_dirt );
 
             item_location boltcutter = setup_dummy();
             setup_activity( boltcutter );
@@ -614,8 +630,8 @@ TEST_CASE( "boltcut", "[activity][boltcut]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_boltcut1 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_boltcut1 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_boltcut1 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_boltcut1 );
 
             item_location boltcutter = setup_dummy();
             setup_activity( boltcutter );
@@ -629,8 +645,8 @@ TEST_CASE( "boltcut", "[activity][boltcut]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_boltcut1 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_boltcut1 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_boltcut1 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_boltcut1 );
 
             item_location boltcutter = setup_dummy();
             setup_activity( boltcutter );
@@ -644,8 +660,8 @@ TEST_CASE( "boltcut", "[activity][boltcut]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_boltcut1 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_boltcut1 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_boltcut1 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_boltcut1 );
 
             item_location boltcutter = setup_dummy();
             setup_activity( boltcutter );
@@ -663,8 +679,8 @@ TEST_CASE( "boltcut", "[activity][boltcut]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_boltcut1 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_boltcut1 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_boltcut1 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_boltcut1 );
 
             item_location boltcutter = setup_dummy();
             setup_activity( boltcutter );
@@ -684,8 +700,8 @@ TEST_CASE( "boltcut", "[activity][boltcut]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_boltcut3 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_boltcut3 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_boltcut3 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_boltcut3 );
 
             item battery( itype_test_battery_disposable );
             battery.ammo_set( battery.ammo_default(), 2 );
@@ -710,7 +726,7 @@ TEST_CASE( "boltcut", "[activity][boltcut]" )
 
                     AND_THEN( "player can resume the activity" ) {
                         setup_activity( boltcutter_elec );
-                        dummy.moves = dummy.get_speed();
+                        dummy.mod_moves( dummy.get_speed() );
                         dummy.activity.do_turn( dummy );
                         CHECK( dummy.activity.id() == ACT_BOLTCUTTING );
                         CHECK( dummy.activity.moves_left < to_moves<int>( furn_test_f_boltcut3->boltcut->duration() ) );
@@ -725,8 +741,8 @@ TEST_CASE( "boltcut", "[activity][boltcut]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_boltcut1 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_boltcut1 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_boltcut1 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_boltcut1 );
 
             item_location boltcutter = setup_dummy();
             setup_activity( boltcutter );
@@ -736,7 +752,7 @@ TEST_CASE( "boltcut", "[activity][boltcut]" )
             REQUIRE( dummy.activity.id() == ACT_NULL );
 
             THEN( "terrain gets converted to new terrain type" ) {
-                CHECK( mp.ter( tripoint_zero ) == t_dirt );
+                CHECK( mp.ter( tripoint_bub_ms::zero ) == ter_t_dirt );
             }
         }
 
@@ -744,8 +760,8 @@ TEST_CASE( "boltcut", "[activity][boltcut]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_boltcut1 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_boltcut1 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_boltcut1 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_boltcut1 );
 
             item_location boltcutter = setup_dummy();
             setup_activity( boltcutter );
@@ -755,7 +771,7 @@ TEST_CASE( "boltcut", "[activity][boltcut]" )
             REQUIRE( dummy.activity.id() == ACT_NULL );
 
             THEN( "furniture gets converted to new furniture type" ) {
-                CHECK( mp.furn( tripoint_zero ) == f_null );
+                CHECK( mp.furn( tripoint_bub_ms::zero ) == furn_str_id::NULL_ID() );
             }
         }
 
@@ -763,8 +779,8 @@ TEST_CASE( "boltcut", "[activity][boltcut]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_boltcut2 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_boltcut2 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_boltcut2 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_boltcut2 );
 
             item_location boltcutter = setup_dummy();
             setup_activity( boltcutter );
@@ -774,7 +790,7 @@ TEST_CASE( "boltcut", "[activity][boltcut]" )
             REQUIRE( dummy.activity.id() == ACT_NULL );
 
             THEN( "furniture gets converted to new furniture type" ) {
-                CHECK( mp.furn( tripoint_zero ) == furn_test_f_boltcut1 );
+                CHECK( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_boltcut1 );
             }
         }
 
@@ -782,8 +798,8 @@ TEST_CASE( "boltcut", "[activity][boltcut]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_boltcut2 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_boltcut2 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_boltcut2 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_boltcut2 );
 
             item_location boltcutter = setup_dummy();
             setup_activity( boltcutter );
@@ -801,7 +817,7 @@ TEST_CASE( "boltcut", "[activity][boltcut]" )
                 CHECK( dummy.activity.id() == ACT_NULL );
 
                 THEN( "player receives the items" ) {
-                    const map_stack items = get_map().i_at( tripoint_zero );
+                    const map_stack items = get_map().i_at( tripoint_bub_ms::zero );
                     int count_amount = 0;
                     int count_random = 0;
                     for( const item &it : items ) {
@@ -838,7 +854,7 @@ TEST_CASE( "hacksaw", "[activity][hacksaw]" )
     };
 
     auto setup_activity = [&dummy]( const item_location & torch ) -> void {
-        hacksaw_activity_actor act{tripoint_zero, torch};
+        hacksaw_activity_actor act{tripoint_bub_ms::zero, torch};
         act.testing = true;
         dummy.assign_activity( act );
     };
@@ -848,8 +864,8 @@ TEST_CASE( "hacksaw", "[activity][hacksaw]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, t_null );
-            REQUIRE( mp.ter( tripoint_zero ) == t_null );
+            mp.ter_set( tripoint_bub_ms::zero, ter_str_id::NULL_ID() );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_str_id::NULL_ID() );
 
             item_location hacksaw = setup_dummy();
             setup_activity( hacksaw );
@@ -863,8 +879,8 @@ TEST_CASE( "hacksaw", "[activity][hacksaw]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, t_dirt );
-            REQUIRE( mp.ter( tripoint_zero ) == t_dirt );
+            mp.ter_set( tripoint_bub_ms::zero, ter_t_dirt );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_t_dirt );
 
             item_location hacksaw = setup_dummy();
             setup_activity( hacksaw );
@@ -878,8 +894,8 @@ TEST_CASE( "hacksaw", "[activity][hacksaw]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_hacksaw1 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_hacksaw1 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_hacksaw1 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_hacksaw1 );
 
             item_location hacksaw = setup_dummy();
             setup_activity( hacksaw );
@@ -893,8 +909,8 @@ TEST_CASE( "hacksaw", "[activity][hacksaw]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_hacksaw1 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_hacksaw1 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_hacksaw1 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_hacksaw1 );
 
             item_location hacksaw = setup_dummy();
             setup_activity( hacksaw );
@@ -908,8 +924,8 @@ TEST_CASE( "hacksaw", "[activity][hacksaw]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_hacksaw1 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_hacksaw1 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_hacksaw1 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_hacksaw1 );
 
             item_location hacksaw = setup_dummy();
             setup_activity( hacksaw );
@@ -927,8 +943,8 @@ TEST_CASE( "hacksaw", "[activity][hacksaw]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_hacksaw1 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_hacksaw1 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_hacksaw1 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_hacksaw1 );
 
             item_location hacksaw = setup_dummy();
             setup_activity( hacksaw );
@@ -948,8 +964,8 @@ TEST_CASE( "hacksaw", "[activity][hacksaw]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_hacksaw3 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_hacksaw3 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_hacksaw3 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_hacksaw3 );
 
             item battery( itype_test_battery_disposable );
             battery.ammo_set( battery.ammo_default() );
@@ -975,7 +991,7 @@ TEST_CASE( "hacksaw", "[activity][hacksaw]" )
 
                     AND_THEN( "player can resume the activity" ) {
                         setup_activity( hacksaw_elec );
-                        dummy.moves = dummy.get_speed();
+                        dummy.mod_moves( dummy.get_speed() );
                         dummy.activity.do_turn( dummy );
                         CHECK( dummy.activity.id() == ACT_HACKSAW );
                         CHECK( dummy.activity.moves_left < to_moves<int>( furn_test_f_hacksaw3->hacksaw->duration() ) );
@@ -990,8 +1006,8 @@ TEST_CASE( "hacksaw", "[activity][hacksaw]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_hacksaw1 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_hacksaw1 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_hacksaw1 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_hacksaw1 );
 
             item_location hacksaw = setup_dummy();
             setup_activity( hacksaw );
@@ -1001,7 +1017,7 @@ TEST_CASE( "hacksaw", "[activity][hacksaw]" )
             REQUIRE( dummy.activity.id() == ACT_NULL );
 
             THEN( "terrain gets converted to new terrain type" ) {
-                CHECK( mp.ter( tripoint_zero ) == t_dirt );
+                CHECK( mp.ter( tripoint_bub_ms::zero ) == ter_t_dirt );
             }
         }
 
@@ -1009,8 +1025,8 @@ TEST_CASE( "hacksaw", "[activity][hacksaw]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_hacksaw1 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_hacksaw1 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_hacksaw1 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_hacksaw1 );
 
             item_location hacksaw = setup_dummy();
             setup_activity( hacksaw );
@@ -1020,7 +1036,7 @@ TEST_CASE( "hacksaw", "[activity][hacksaw]" )
             REQUIRE( dummy.activity.id() == ACT_NULL );
 
             THEN( "furniture gets converted to new furniture type" ) {
-                CHECK( mp.furn( tripoint_zero ) == f_null );
+                CHECK( mp.furn( tripoint_bub_ms::zero ) == furn_str_id::NULL_ID() );
             }
         }
 
@@ -1028,8 +1044,8 @@ TEST_CASE( "hacksaw", "[activity][hacksaw]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_hacksaw2 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_hacksaw2 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_hacksaw2 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_hacksaw2 );
 
             item_location hacksaw = setup_dummy();
             setup_activity( hacksaw );
@@ -1039,7 +1055,7 @@ TEST_CASE( "hacksaw", "[activity][hacksaw]" )
             REQUIRE( dummy.activity.id() == ACT_NULL );
 
             THEN( "furniture gets converted to new furniture type" ) {
-                CHECK( mp.furn( tripoint_zero ) == furn_test_f_hacksaw1 );
+                CHECK( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_hacksaw1 );
             }
         }
 
@@ -1047,8 +1063,8 @@ TEST_CASE( "hacksaw", "[activity][hacksaw]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_hacksaw2 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_hacksaw2 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_hacksaw2 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_hacksaw2 );
 
             item_location hacksaw = setup_dummy();
             setup_activity( hacksaw );
@@ -1066,7 +1082,7 @@ TEST_CASE( "hacksaw", "[activity][hacksaw]" )
                 CHECK( dummy.activity.id() == ACT_NULL );
 
                 THEN( "player receives the items" ) {
-                    const map_stack items = get_map().i_at( tripoint_zero );
+                    const map_stack items = get_map().i_at( tripoint_bub_ms::zero );
                     int count_amount = 0;
                     int count_random = 0;
                     for( const item &it : items ) {
@@ -1104,7 +1120,7 @@ TEST_CASE( "oxytorch", "[activity][oxytorch]" )
     };
 
     auto setup_activity = [&dummy]( const item_location & torch ) -> void {
-        oxytorch_activity_actor act{tripoint_zero, torch};
+        oxytorch_activity_actor act{tripoint_bub_ms::zero, torch};
         act.testing = true;
         dummy.assign_activity( act );
     };
@@ -1114,8 +1130,8 @@ TEST_CASE( "oxytorch", "[activity][oxytorch]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, t_null );
-            REQUIRE( mp.ter( tripoint_zero ) == t_null );
+            mp.ter_set( tripoint_bub_ms::zero, ter_str_id::NULL_ID() );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_str_id::NULL_ID() );
 
             item_location welding_torch = setup_dummy();
             setup_activity( welding_torch );
@@ -1129,8 +1145,8 @@ TEST_CASE( "oxytorch", "[activity][oxytorch]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, t_dirt );
-            REQUIRE( mp.ter( tripoint_zero ) == t_dirt );
+            mp.ter_set( tripoint_bub_ms::zero, ter_t_dirt );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_t_dirt );
 
             item_location welding_torch = setup_dummy();
             setup_activity( welding_torch );
@@ -1144,8 +1160,8 @@ TEST_CASE( "oxytorch", "[activity][oxytorch]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_oxytorch1 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_oxytorch1 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_oxytorch1 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_oxytorch1 );
 
             item_location welding_torch = setup_dummy();
             setup_activity( welding_torch );
@@ -1159,8 +1175,8 @@ TEST_CASE( "oxytorch", "[activity][oxytorch]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_oxytorch1 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_oxytorch1 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_oxytorch1 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_oxytorch1 );
 
             item_location welding_torch = setup_dummy();
             setup_activity( welding_torch );
@@ -1174,8 +1190,8 @@ TEST_CASE( "oxytorch", "[activity][oxytorch]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_oxytorch1 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_oxytorch1 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_oxytorch1 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_oxytorch1 );
 
             item_location welding_torch = setup_dummy();
             setup_activity( welding_torch );
@@ -1193,8 +1209,8 @@ TEST_CASE( "oxytorch", "[activity][oxytorch]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_oxytorch1 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_oxytorch1 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_oxytorch1 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_oxytorch1 );
 
             item_location welding_torch = setup_dummy();
             setup_activity( welding_torch );
@@ -1214,8 +1230,8 @@ TEST_CASE( "oxytorch", "[activity][oxytorch]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_oxytorch3 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_oxytorch3 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_oxytorch3 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_oxytorch3 );
 
             item_location welding_torch = setup_dummy();
             setup_activity( welding_torch );
@@ -1230,7 +1246,7 @@ TEST_CASE( "oxytorch", "[activity][oxytorch]" )
 
                     AND_THEN( "player can resume the activity" ) {
                         setup_activity( welding_torch );
-                        dummy.moves = dummy.get_speed();
+                        dummy.mod_moves( dummy.get_speed() );
                         dummy.activity.do_turn( dummy );
                         CHECK( dummy.activity.id() == ACT_OXYTORCH );
                         CHECK( dummy.activity.moves_left < to_moves<int>( furn_test_f_oxytorch3->oxytorch->duration() ) );
@@ -1245,8 +1261,8 @@ TEST_CASE( "oxytorch", "[activity][oxytorch]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_oxytorch1 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_oxytorch1 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_oxytorch1 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_oxytorch1 );
 
             item_location welding_torch = setup_dummy();
             setup_activity( welding_torch );
@@ -1256,7 +1272,7 @@ TEST_CASE( "oxytorch", "[activity][oxytorch]" )
             REQUIRE( dummy.activity.id() == ACT_NULL );
 
             THEN( "terrain gets converted to new terrain type" ) {
-                CHECK( mp.ter( tripoint_zero ) == t_dirt );
+                CHECK( mp.ter( tripoint_bub_ms::zero ) == ter_t_dirt );
             }
         }
 
@@ -1264,8 +1280,8 @@ TEST_CASE( "oxytorch", "[activity][oxytorch]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_oxytorch1 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_oxytorch1 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_oxytorch1 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_oxytorch1 );
 
             item_location welding_torch = setup_dummy();
             setup_activity( welding_torch );
@@ -1275,7 +1291,7 @@ TEST_CASE( "oxytorch", "[activity][oxytorch]" )
             REQUIRE( dummy.activity.id() == ACT_NULL );
 
             THEN( "furniture gets converted to new furniture type" ) {
-                CHECK( mp.furn( tripoint_zero ) == f_null );
+                CHECK( mp.furn( tripoint_bub_ms::zero ) == furn_str_id::NULL_ID() );
             }
         }
 
@@ -1283,8 +1299,8 @@ TEST_CASE( "oxytorch", "[activity][oxytorch]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_oxytorch2 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_oxytorch2 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_oxytorch2 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_oxytorch2 );
 
             item_location welding_torch = setup_dummy();
             setup_activity( welding_torch );
@@ -1294,7 +1310,7 @@ TEST_CASE( "oxytorch", "[activity][oxytorch]" )
             REQUIRE( dummy.activity.id() == ACT_NULL );
 
             THEN( "furniture gets converted to new furniture type" ) {
-                CHECK( mp.furn( tripoint_zero ) == furn_test_f_oxytorch1 );
+                CHECK( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_oxytorch1 );
             }
         }
 
@@ -1302,8 +1318,8 @@ TEST_CASE( "oxytorch", "[activity][oxytorch]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_oxytorch2 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_oxytorch2 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_oxytorch2 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_oxytorch2 );
 
             item_location welding_torch = setup_dummy();
             setup_activity( welding_torch );
@@ -1321,7 +1337,7 @@ TEST_CASE( "oxytorch", "[activity][oxytorch]" )
                 CHECK( dummy.activity.id() == ACT_NULL );
 
                 THEN( "player receives the items" ) {
-                    const map_stack items = get_map().i_at( tripoint_zero );
+                    const map_stack items = get_map().i_at( tripoint_bub_ms::zero );
                     int count_amount = 0;
                     int count_random = 0;
                     for( const item &it : items ) {
@@ -1367,7 +1383,7 @@ TEST_CASE( "prying", "[activity][prying]" )
     };
 
     auto setup_activity = [&dummy]( const item_location & tool,
-    const tripoint &target = tripoint_zero ) -> void {
+    const tripoint_bub_ms &target = tripoint_bub_ms::zero ) -> void {
         prying_activity_actor act{target, tool};
         act.testing = true;
         dummy.assign_activity( act );
@@ -1400,8 +1416,8 @@ TEST_CASE( "prying", "[activity][prying]" )
             const time_duration prying_time = prying_activity_actor::prying_time(
                                                   *ter_test_t_prying3->prying, prying_tool, dummy );
 
-            THEN( "prying time is 32 seconds" ) {
-                CHECK( prying_time == 32_seconds );
+            THEN( "prying time is 30 seconds" ) {
+                CHECK( prying_time == 30_seconds );
             }
         }
     }
@@ -1411,8 +1427,8 @@ TEST_CASE( "prying", "[activity][prying]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, t_null );
-            REQUIRE( mp.ter( tripoint_zero ) == t_null );
+            mp.ter_set( tripoint_bub_ms::zero, ter_str_id::NULL_ID() );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_str_id::NULL_ID() );
 
             item_location prying_tool = setup_dummy( true );
             setup_activity( prying_tool );
@@ -1426,8 +1442,8 @@ TEST_CASE( "prying", "[activity][prying]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, t_dirt );
-            REQUIRE( mp.ter( tripoint_zero ) == t_dirt );
+            mp.ter_set( tripoint_bub_ms::zero, ter_t_dirt );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_t_dirt );
 
             item_location prying_tool = setup_dummy( true );
             setup_activity( prying_tool );
@@ -1441,8 +1457,8 @@ TEST_CASE( "prying", "[activity][prying]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_prying1 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_prying1 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_prying1 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_prying1 );
 
             item_location prying_tool = setup_dummy( true );
             setup_activity( prying_tool );
@@ -1456,8 +1472,8 @@ TEST_CASE( "prying", "[activity][prying]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_prying1 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_prying1 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_prying1 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_prying1 );
 
             item_location prying_tool = setup_dummy( true );
             setup_activity( prying_tool );
@@ -1471,8 +1487,8 @@ TEST_CASE( "prying", "[activity][prying]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_prying1 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_prying1 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_prying1 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_prying1 );
 
             item_location prying_tool = setup_dummy( true );
             setup_activity( prying_tool );
@@ -1490,8 +1506,8 @@ TEST_CASE( "prying", "[activity][prying]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_prying1 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_prying1 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_prying1 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_prying1 );
 
             item_location prying_tool = setup_dummy( true );
             setup_activity( prying_tool );
@@ -1511,8 +1527,8 @@ TEST_CASE( "prying", "[activity][prying]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_prying1 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_prying1 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_prying1 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_prying1 );
 
             item_location prying_tool = setup_dummy( true );
             setup_activity( prying_tool );
@@ -1522,7 +1538,7 @@ TEST_CASE( "prying", "[activity][prying]" )
             REQUIRE( dummy.activity.id() == ACT_NULL );
 
             THEN( "terrain gets converted to new terrain type" ) {
-                CHECK( mp.ter( tripoint_zero ) == t_dirt );
+                CHECK( mp.ter( tripoint_bub_ms::zero ) == ter_t_dirt );
             }
         }
 
@@ -1530,8 +1546,8 @@ TEST_CASE( "prying", "[activity][prying]" )
             clear_map();
             clear_avatar();
 
-            mp.furn_set( tripoint_zero, furn_test_f_prying1 );
-            REQUIRE( mp.furn( tripoint_zero ) == furn_test_f_prying1 );
+            mp.furn_set( tripoint_bub_ms::zero, furn_test_f_prying1 );
+            REQUIRE( mp.furn( tripoint_bub_ms::zero ) == furn_test_f_prying1 );
 
             item_location prying_tool = setup_dummy( true );
             setup_activity( prying_tool );
@@ -1541,7 +1557,7 @@ TEST_CASE( "prying", "[activity][prying]" )
             REQUIRE( dummy.activity.id() == ACT_NULL );
 
             THEN( "furniture gets converted to new furniture type" ) {
-                CHECK( mp.furn( tripoint_zero ) == f_null );
+                CHECK( mp.furn( tripoint_bub_ms::zero ) == furn_str_id::NULL_ID() );
             }
         }
     }
@@ -1551,8 +1567,8 @@ TEST_CASE( "prying", "[activity][prying]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_prying2 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_prying2 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_prying2 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_prying2 );
 
             item_location prying_tool = setup_dummy( true );
             setup_activity( prying_tool );
@@ -1562,7 +1578,7 @@ TEST_CASE( "prying", "[activity][prying]" )
             REQUIRE( dummy.activity.id() == ACT_NULL );
 
             THEN( "activity fails" ) {
-                CHECK( mp.ter( tripoint_zero ) == ter_test_t_prying2 );
+                CHECK( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_prying2 );
             }
         }
 
@@ -1570,8 +1586,8 @@ TEST_CASE( "prying", "[activity][prying]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_prying2 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_prying2 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_prying2 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_prying2 );
 
             item_location prying_tool = setup_dummy( false );
             setup_activity( prying_tool );
@@ -1581,7 +1597,7 @@ TEST_CASE( "prying", "[activity][prying]" )
             REQUIRE( dummy.activity.id() == ACT_NULL );
 
             THEN( "terrain gets converted to new type" ) {
-                CHECK( mp.ter( tripoint_zero ) == t_dirt );
+                CHECK( mp.ter( tripoint_bub_ms::zero ) == ter_t_dirt );
             }
         }
 
@@ -1589,7 +1605,7 @@ TEST_CASE( "prying", "[activity][prying]" )
             clear_map();
             clear_avatar();
 
-            const tripoint terrain_pos = dummy.pos() + tripoint_north;
+            const tripoint_bub_ms terrain_pos = dummy.pos_bub() + tripoint::north;
 
             mp.ter_set( terrain_pos, ter_test_t_prying4 );
             REQUIRE( mp.ter( terrain_pos ) == ter_test_t_prying4 );
@@ -1605,7 +1621,7 @@ TEST_CASE( "prying", "[activity][prying]" )
 
             WHEN( "activity fails" ) {
                 CHECK( dummy.activity.id() == ACT_NULL );
-                CHECK( mp.ter( terrain_pos ) == t_dirt );
+                CHECK( mp.ter( terrain_pos ) == ter_t_dirt );
                 const map_stack items = get_map().i_at( terrain_pos );
                 int count_shards = 0;
                 for( const item &it : items ) {
@@ -1625,8 +1641,8 @@ TEST_CASE( "prying", "[activity][prying]" )
             clear_map();
             clear_avatar();
 
-            mp.ter_set( tripoint_zero, ter_test_t_prying1 );
-            REQUIRE( mp.ter( tripoint_zero ) == ter_test_t_prying1 );
+            mp.ter_set( tripoint_bub_ms::zero, ter_test_t_prying1 );
+            REQUIRE( mp.ter( tripoint_bub_ms::zero ) == ter_test_t_prying1 );
 
             item_location prying_tool = setup_dummy( true );
             setup_activity( prying_tool );
@@ -1644,7 +1660,7 @@ TEST_CASE( "prying", "[activity][prying]" )
                 CHECK( dummy.activity.id() == ACT_NULL );
 
                 THEN( "player receives the items" ) {
-                    const map_stack items = get_map().i_at( tripoint_zero );
+                    const map_stack items = get_map().i_at( tripoint_bub_ms::zero );
                     int count_amount = 0;
                     int count_random = 0;
                     for( const item &it : items ) {
@@ -1662,6 +1678,224 @@ TEST_CASE( "prying", "[activity][prying]" )
                 }
             }
         }
+    }
+}
+
+static void update_efiles( std::vector<item_location> &edevice_locs,
+                           std::vector<item_location> &efile_locs,
+                           std::vector<item_location> &copiable_efile_locs )
+{
+    //update files
+    efile_locs.clear();
+    copiable_efile_locs.clear();
+    for( item_location &edevice : edevice_locs ) {
+        for( item *efile : edevice->efiles() ) {
+            efile_locs.emplace_back( edevice, efile );
+        }
+    }
+    for( item_location &loc : efile_locs ) {
+        if( loc->is_ecopiable() ) {
+            copiable_efile_locs.emplace_back( loc );
+        }
+    }
+}
+
+TEST_CASE( "edevice", "[activity][edevice]" )
+{
+    avatar dummy;
+    dummy.set_skill_level( skill_computer, 1 );
+    clear_map();
+    std::vector<item_location> edevice_locs;
+    std::vector<item_location> efile_locs;
+    std::vector<item_location> copiable_efile_locs;
+
+    item_location laptop_with_files;
+    item_location edevice_without_files;
+    std::vector<item_location> vector_laptop_with_files;
+    std::vector<item_location> vector_edevice_without_files;
+
+    const std::function<bool( const item &i )> copy_efile_filter = []( const item & i ) {
+        return i.typeId() == itype_test_efile_copiable;
+    };
+    auto do_activity = [&dummy]( item_location & used_edevice,
+                                 std::vector<item_location> &target_edevices,
+    std::vector<item_location> &selected_efiles, efile_action action, bool pass_time = true ) {
+        efile_activity_actor act( used_edevice, target_edevices, selected_efiles,
+                                  action, efile_combo::COMBO_NONE );
+        dummy.assign_activity( act );
+        process_activity( dummy, pass_time );
+    };
+
+    auto add_edevices = [&]( const item_group_id & igroup, bool add_etd = true ) {
+        dummy.clear_worn();
+        dummy.wear_item( item( itype_test_backpack ) );
+        edevice_locs.clear();
+        item_group::ItemList items = item_group::items_from( igroup );
+        for( item &i : items ) {
+            REQUIRE( !i.is_browsed() );
+            edevice_locs.emplace_back( dummy.i_add( i ) );
+        }
+        //every test item group is only two devices
+        laptop_with_files = edevice_locs.front();
+        vector_laptop_with_files.clear();
+        vector_laptop_with_files.emplace_back( laptop_with_files );
+
+        edevice_without_files = edevice_locs.back();
+        vector_edevice_without_files.clear();
+        vector_edevice_without_files.emplace_back( edevice_without_files );
+        if( add_etd ) {
+            item etd( itype_memory_card );
+            etd.set_browsed( true );
+            dummy.i_add( etd );
+        }
+        REQUIRE( !!laptop_with_files );
+        REQUIRE( !!edevice_without_files );
+
+        update_efiles( edevice_locs, efile_locs, copiable_efile_locs );
+        //browse required before any further efile operations
+        do_activity( laptop_with_files, edevice_locs, efile_locs, EF_BROWSE );
+        for( item_location &i : edevice_locs ) {
+            REQUIRE( i->is_browsed() );
+        }
+    };
+
+    SECTION( "move to / move from" ) {
+        add_edevices( Item_spawn_data_test_edevices_standard );
+        REQUIRE( laptop_with_files->efiles().size() == 3 );
+        REQUIRE( edevice_without_files->efiles().empty() );
+        do_activity( edevice_without_files, vector_laptop_with_files, efile_locs, EF_MOVE_ONTO_THIS );
+        REQUIRE( edevice_without_files->efiles().size() == 3 );
+        REQUIRE( laptop_with_files->efiles().empty() );
+        update_efiles( edevice_locs, efile_locs, copiable_efile_locs );
+        REQUIRE( efile_locs.size() == 3 );
+        REQUIRE( efile_locs.front() );
+        do_activity( edevice_without_files, vector_laptop_with_files, efile_locs, EF_MOVE_FROM_THIS );
+        REQUIRE( laptop_with_files->efiles().size() == 3 );
+        REQUIRE( edevice_without_files->efiles().empty() );
+    }
+    SECTION( "copy onto" ) {
+        add_edevices( Item_spawn_data_test_edevices_standard );
+        do_activity( edevice_without_files, vector_laptop_with_files, copiable_efile_locs,
+                     EF_COPY_ONTO_THIS );
+        REQUIRE( laptop_with_files->efiles().size() == 3 );
+        REQUIRE( edevice_without_files->efiles().size() == 1 );
+        REQUIRE( edevice_without_files->efiles().front()->typeId() == itype_test_efile_copiable );
+        item *copied_efile = laptop_with_files->get_item_with( copy_efile_filter );
+        REQUIRE( copied_efile != nullptr );
+        REQUIRE( copied_efile->typeId() == itype_test_efile_copiable );
+    }
+    SECTION( "copy from" ) {
+        add_edevices( Item_spawn_data_test_edevices_standard );
+        do_activity( laptop_with_files, vector_edevice_without_files, copiable_efile_locs,
+                     EF_COPY_FROM_THIS );
+        REQUIRE( laptop_with_files->efiles().size() == 3 );
+        REQUIRE( edevice_without_files->efiles().size() == 1 );
+        REQUIRE( edevice_without_files->efiles().front()->typeId() == itype_test_efile_copiable );
+        item *copied_efile = laptop_with_files->get_item_with( copy_efile_filter );
+        REQUIRE( copied_efile != nullptr );
+        REQUIRE( copied_efile->typeId() == itype_test_efile_copiable );
+    }
+    SECTION( "wipe" ) {
+        add_edevices( Item_spawn_data_test_edevices_standard );
+        do_activity( edevice_without_files, vector_laptop_with_files, efile_locs, EF_WIPE );
+        REQUIRE( edevice_without_files->efiles().empty() );
+        REQUIRE( laptop_with_files->efiles().empty() );
+    }
+    SECTION( "empty parameters test" ) {
+        efile_locs.clear();
+        item_location empty_loc;
+        std::vector<item_location> vector_empty_loc;
+        efile_activity_actor act( empty_loc, vector_empty_loc, efile_locs, EF_MOVE_ONTO_THIS, COMBO_NONE );
+        dummy.assign_activity( act );
+        dummy.activity.do_turn( dummy );
+        REQUIRE( !dummy.activity );
+    }
+    //power tests
+    SECTION( "move to used edevice runs out of power" ) {
+        add_edevices( Item_spawn_data_test_edevices_power );
+        do_activity( edevice_without_files, vector_laptop_with_files, efile_locs, EF_MOVE_ONTO_THIS );
+        //the operation failed and the file has not been moved
+        REQUIRE( edevice_without_files->efiles().empty() );
+        REQUIRE( laptop_with_files->efiles().size() == 1 );
+    }
+    SECTION( "move from target edevice runs out of power" ) {
+        add_edevices( Item_spawn_data_test_edevices_power );
+        REQUIRE( edevice_without_files );
+        do_activity( laptop_with_files, vector_edevice_without_files, efile_locs, EF_MOVE_FROM_THIS );
+        //the operation fails and the file has not been moved
+        REQUIRE( edevice_without_files->efiles().empty() );
+        REQUIRE( laptop_with_files->efiles().size() == 1 );
+    }
+    SECTION( "move to used edevice disappears" ) {
+        add_edevices( Item_spawn_data_test_edevices_power );
+        REQUIRE( edevice_without_files );
+        efile_activity_actor act( edevice_without_files, vector_laptop_with_files,
+                                  efile_locs, EF_MOVE_ONTO_THIS, COMBO_NONE );
+        dummy.assign_activity( act );
+        for( int i = 0; i < 20; i++ ) {
+            calendar::turn += 1_seconds;
+            dummy.activity.do_turn( dummy );
+        }
+        dummy.remove_item( *edevice_without_files );
+        dummy.activity.do_turn( dummy );
+        //the operation immediately fails
+        REQUIRE( !dummy.activity );
+        //the operation failed and the file has not been moved
+        REQUIRE( laptop_with_files->efiles().size() == 1 );
+    }
+    SECTION( "move from target edevice disappears" ) {
+        add_edevices( Item_spawn_data_test_edevices_power );
+        efile_activity_actor act( laptop_with_files, vector_edevice_without_files, efile_locs,
+                                  EF_MOVE_FROM_THIS, COMBO_NONE );
+        dummy.assign_activity( act );
+        for( int i = 0; i < 20; i++ ) {
+            calendar::turn += 1_seconds;
+            dummy.activity.do_turn( dummy );
+        }
+        dummy.remove_item( *edevice_without_files );
+        process_activity( dummy );
+        //the operation fails and the file has not been moved
+        REQUIRE( laptop_with_files->efiles().size() == 1 );
+    }
+    SECTION( "fast move between compatible devices" ) {
+        add_edevices( Item_spawn_data_test_edevices_compat );
+        time_point before = calendar::turn;
+        do_activity( laptop_with_files, vector_edevice_without_files, efile_locs, EF_MOVE_FROM_THIS );
+        REQUIRE( calendar::turn - ( before + 1_seconds ) ==
+                 810_seconds ); // 24GB / 30MB per sec + 10 second boot
+    }
+    SECTION( "slow move between incompatible devices" ) {
+        add_edevices( Item_spawn_data_test_edevices_incompat, false );
+        time_point before = calendar::turn;
+        int battery_start = laptop_with_files->ammo_remaining();
+        do_activity( laptop_with_files, vector_edevice_without_files, efile_locs, EF_MOVE_FROM_THIS );
+        REQUIRE( battery_start - laptop_with_files->ammo_remaining() ==
+                 100 ); //400 minutes / 1 charge per 4 min
+        REQUIRE( calendar::turn - ( before + 1_seconds ) == 24010_seconds ); // 24GB / 1MB per sec
+    }
+    SECTION( "fast move between incompatible devices with ETD" ) {
+        add_edevices( Item_spawn_data_test_edevices_incompat );
+        time_point before = calendar::turn;
+        do_activity( laptop_with_files, vector_edevice_without_files, efile_locs, EF_MOVE_FROM_THIS );
+        REQUIRE( calendar::turn - ( before + 1_seconds ) == 4010_seconds ); // 24GB / (12 / 2)MB per sec
+    }
+    SECTION( "recipe combination" ) {
+        add_edevices( Item_spawn_data_test_edevices_recipes );
+        std::set<recipe_id> recipes1 = laptop_with_files->get_saved_recipes();
+        std::set<recipe_id> recipes2 = edevice_without_files->get_saved_recipes();
+        std::set<recipe_id> combined = recipes1;
+        for( const recipe_id &recipe : recipes2 ) {
+            combined.insert( recipe );
+        }
+        REQUIRE( !recipes1.empty() );
+        REQUIRE( !recipes2.empty() );
+        std::vector<item_location> lwf_locs;
+        for( item *efile : laptop_with_files->efiles() ) {
+            lwf_locs.emplace_back( laptop_with_files, efile );
+        }
+        do_activity( laptop_with_files, vector_edevice_without_files, lwf_locs, EF_MOVE_FROM_THIS );
+        REQUIRE( laptop_with_files->get_saved_recipes().empty() );
+        REQUIRE( combined.size() == edevice_without_files->get_saved_recipes().size() );
     }
 }
 
@@ -1693,21 +1927,21 @@ static const std::vector<std::function<player_activity()>> test_activities {
     [] { return player_activity( firstaid_activity_actor( 1, std::string(), get_avatar().getID() ) ); },
     [] { return player_activity( forage_activity_actor( 1 ) ); },
     [] { return player_activity( gunmod_remove_activity_actor( 1, item_location(), 0 ) ); },
-    [] { return player_activity( hacking_activity_actor() ); },
+    [] { return player_activity( hacking_activity_actor( item_location() ) ); },
     //player_activity( hacksaw_activity_actor( p, loc ) ),
     [] { return player_activity( haircut_activity_actor() ); },
     //player_activity( harvest_activity_actor( p ) ),
-    [] { return player_activity( hotwire_car_activity_actor( 1, get_avatar().pos() ) ); },
+    [] { return player_activity( hotwire_car_activity_actor( 1, get_avatar().pos_abs() ) ); },
     //player_activity( insert_item_activity_actor() ),
-    [] { return player_activity( lockpick_activity_actor::use_item( 1, item_location(), get_avatar().pos() ) ); },
+    [] { return player_activity( lockpick_activity_actor::use_item( 1, item_location(), get_avatar().pos_abs() ) ); },
     //player_activity( longsalvage_activity_actor() ),
     [] { return player_activity( meditate_activity_actor() ); },
     [] { return player_activity( migration_cancel_activity_actor() ); },
-    [] { return player_activity( milk_activity_actor( 1, {get_avatar().pos()}, {std::string()} ) ); },
+    [] { return player_activity( milk_activity_actor( 1, {get_avatar().pos_abs()}, {std::string()} ) ); },
     [] { return player_activity( mop_activity_actor( 1 ) ); },
     //player_activity( move_furniture_activity_actor( p, false ) ),
-    [] { return player_activity( move_items_activity_actor( {}, {}, false, get_avatar().pos() + tripoint_north ) ); },
-    [] { return player_activity( open_gate_activity_actor( 1, get_avatar().pos() ) ); },
+    [] { return player_activity( move_items_activity_actor( {}, {}, false, tripoint_rel_ms::north ) ); },
+    [] { return player_activity( open_gate_activity_actor( 1, get_avatar().pos_bub() ) ); },
     //player_activity( oxytorch_activity_actor( p, loc ) ),
     [] { return player_activity( pickup_activity_actor( {}, {}, std::nullopt, false ) ); },
     [] { return player_activity( play_with_pet_activity_actor() ); },
@@ -1721,11 +1955,11 @@ static const std::vector<std::function<player_activity()>> test_activities {
         item::reload_option opt( dummy, target, ammo );
         return player_activity( reload_activity_actor( std::move( opt ) ) );
     },
-    [] { return player_activity( safecracking_activity_actor( get_avatar().pos() + tripoint_north ) ); },
+    [] { return player_activity( safecracking_activity_actor( get_avatar().pos_bub() + tripoint_rel_ms::north ) ); },
     [] { return player_activity( shave_activity_actor() ); },
     //player_activity( shearing_activity_actor( north ) ),
     [] { return player_activity( stash_activity_actor() ); },
-    [] { return player_activity( tent_deconstruct_activity_actor( 1, 1, get_avatar().pos(), itype_tent_kit ) ); },
+    [] { return player_activity( tent_deconstruct_activity_actor( 1, 1, get_avatar().pos_bub(), itype_tent_kit ) ); },
     //player_activity( tent_placement_activity_actor() ),
     [] { return player_activity( try_sleep_activity_actor( time_duration::from_hours( 1 ) ) ); },
     [] { return player_activity( unload_activity_actor( 1, item_location() ) ); },
@@ -1762,9 +1996,9 @@ TEST_CASE( "activity_interruption_by_distractions", "[activity][interruption]" )
     clear_avatar();
     clear_map();
     set_time_to_day();
+    scoped_weather_override clear_weather( WEATHER_CLEAR );
     avatar &dummy = get_avatar();
     map &m = get_map();
-    calendar::turn = daylight_time( calendar::turn ) + 2_hours;
 
     for( const std::function<player_activity()> &setup_activity : test_activities ) {
         player_activity activity = setup_activity();
@@ -1779,8 +2013,8 @@ TEST_CASE( "activity_interruption_by_distractions", "[activity][interruption]" )
         //aiming is excluded from this kind of interruption
         REQUIRE( dummy.activity.id() != ACT_AIM );
 
-        tripoint zombie_pos_near = dummy.pos() + tripoint( 2, 0, 0 );
-        tripoint zombie_pos_far = dummy.pos() + tripoint( 10, 0, 0 );
+        tripoint_bub_ms zombie_pos_near = dummy.pos_bub() + tripoint( 2, 0, 0 );
+        tripoint_bub_ms zombie_pos_far = dummy.pos_bub() + tripoint( 10, 0, 0 );
 
         //to make section names unique
         std::string act = activity.id().str();
@@ -1810,7 +2044,7 @@ TEST_CASE( "activity_interruption_by_distractions", "[activity][interruption]" )
             CHECK( dists.empty() );
 
             THEN( "interruption by zombie moving towards dummy" ) {
-                zombie.set_dest( get_map().getglobal( dummy.pos() ) );
+                zombie.set_dest( get_map().get_abs( dummy.pos_bub() ) );
                 int turns = 0;
                 do {
                     move_monster_turn( zombie );
@@ -1826,7 +2060,7 @@ TEST_CASE( "activity_interruption_by_distractions", "[activity][interruption]" )
         SECTION( act + " enemy nearby, but no line of sight" ) {
             cleanup( dummy );
 
-            m.ter_set( dummy.pos() + tripoint_east, ter_t_wall );
+            m.ter_set( dummy.pos_bub() + tripoint::east, ter_t_wall );
             monster &zombie = spawn_test_monster( mon_zombie.str(), zombie_pos_near );
             update_cache( m );
 
@@ -1837,7 +2071,7 @@ TEST_CASE( "activity_interruption_by_distractions", "[activity][interruption]" )
             CHECK( dists.empty() );
 
             THEN( "interruption by zombie moving towards dummy" ) {
-                zombie.set_dest( get_map().getglobal( dummy.pos() ) );
+                zombie.set_dest( get_map().get_abs( dummy.pos_bub() ) );
                 int turns = 0;
                 do {
                     move_monster_turn( zombie );
@@ -1853,7 +2087,7 @@ TEST_CASE( "activity_interruption_by_distractions", "[activity][interruption]" )
         SECTION( act + " interruption by dangerous field" ) {
             cleanup( dummy );
 
-            m.add_field( dummy.pos(), field_fd_smoke );
+            m.add_field( dummy.pos_bub(), field_fd_smoke );
 
             std::map<distraction_type, std::string> dists = dummy.activity.get_distractions();
 
@@ -1865,7 +2099,7 @@ TEST_CASE( "activity_interruption_by_distractions", "[activity][interruption]" )
             cleanup( dummy );
 
             spawn_test_monster( mon_zombie.str(), zombie_pos_near );
-            m.add_field( dummy.pos(), field_fd_smoke );
+            m.add_field( dummy.pos_bub(), field_fd_smoke );
             std::map<distraction_type, std::string> dists = dummy.activity.get_distractions();
 
             CHECK( dists.size() == 2 );

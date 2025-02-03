@@ -74,6 +74,19 @@ struct enum_traits<bionic_ui_sort_mode> {
     static constexpr bionic_ui_sort_mode last = bionic_ui_sort_mode::nsort;
 };
 
+enum class list_item_sort_mode : int {
+    DISTANCE,
+    NAME,
+    CATEGORY_DISTANCE,
+    CATEGORY_NAME,
+    count
+};
+
+template<>
+struct enum_traits<list_item_sort_mode> {
+    static constexpr list_item_sort_mode last = list_item_sort_mode::count;
+};
+
 // When bool is not enough. NONE, SOME or ALL
 enum class trinary : int {
     NONE = 0,
@@ -335,6 +348,7 @@ enum class distraction_type : int {
     temperature,
     mutation,
     oxygen,
+    withdrawal,
     last,
 };
 
@@ -351,7 +365,7 @@ enum game_message_type : int {
     m_warning, /* warns the player about a danger. e.g. enemy appeared, an alarm sounds, noise heard. */
     m_info,    /* informs the player about something, e.g. on examination, seeing an item,
                   about how to use a certain function, etc. */
-    m_neutral,  /* neutral or indifferent events which aren’t informational or nothing really happened e.g.
+    m_neutral,  /* neutral or indifferent events which aren't informational or nothing really happened e.g.
                   a miss, a non-critical failure. May also effect for good or bad effects which are
                   just very slight to be notable. This is the default message type. */
 
@@ -489,6 +503,12 @@ enum class link_state : int {
 template<>
 struct enum_traits<link_state> {
     static constexpr link_state last = link_state::last;
+};
+
+enum mut_count_type {
+    POSITIVE,
+    NEGATIVE,
+    ALL
 };
 
 #endif // CATA_SRC_ENUMS_H

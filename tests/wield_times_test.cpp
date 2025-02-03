@@ -15,18 +15,22 @@
 #include "type_id.h"
 
 static const itype_id itype_aspirin( "aspirin" );
+static const itype_id itype_backpack( "backpack" );
+static const itype_id itype_bag_plastic( "bag_plastic" );
 static const itype_id itype_knife_combat( "knife_combat" );
+static const itype_id itype_knife_hunting( "knife_hunting" );
 static const itype_id itype_metal_tank( "metal_tank" );
+static const itype_id itype_pants_cargo( "pants_cargo" );
+static const itype_id itype_sheath( "sheath" );
 
 static void wield_check_from_inv( avatar &guy, const itype_id &item_name, const int expected_moves )
 {
     guy.remove_weapon();
     guy.clear_worn();
     item spawned_item( item_name, calendar::turn, 1 );
-    item backpack( "backpack" );
+    item backpack( itype_backpack );
     REQUIRE( backpack.can_contain( spawned_item ).success() );
     auto item_iter = guy.worn.wear_item( guy, backpack, false, false );
-    REQUIRE( guy.mutation_value( "obtain_cost_multiplier" ) == 1.0 );
 
     item_location backpack_loc( guy, & **item_iter );
     backpack_loc->put_in( spawned_item, pocket_type::CONTAINER );
@@ -36,10 +40,10 @@ static void wield_check_from_inv( avatar &guy, const itype_id &item_name, const 
     CAPTURE( item_loc->typeId() );
 
     guy.set_moves( 1000 );
-    const int old_moves = guy.moves;
+    const int old_moves = guy.get_moves();
     REQUIRE( guy.wield( item_loc ) );
     CAPTURE( guy.get_wielded_item()->typeId() );
-    int move_cost = old_moves - guy.moves;
+    int move_cost = old_moves - guy.get_moves();
 
     INFO( "Strength:" << guy.get_str() );
     CHECK( Approx( expected_moves ).epsilon( 0.1f ) == move_cost );
@@ -48,9 +52,9 @@ static void wield_check_from_inv( avatar &guy, const itype_id &item_name, const 
 static void wield_check_from_ground( avatar &guy, const itype_id &item_name,
                                      const int expected_moves )
 {
-    item &spawned_item = get_map().add_item_or_charges( guy.pos(), item( item_name, calendar::turn,
+    item &spawned_item = get_map().add_item_or_charges( guy.pos_bub(), item( item_name, calendar::turn,
                          1 ) );
-    item_location item_loc( map_cursor( guy.pos() ), &spawned_item );
+    item_location item_loc( map_cursor( guy.pos_abs() ), &spawned_item );
     CHECK( item_loc.obtain_cost( guy ) == Approx( expected_moves ).epsilon( 0.1f ) );
 }
 
@@ -59,11 +63,11 @@ TEST_CASE( "Wield_time_test", "[wield]" )
     clear_map();
 
     SECTION( "A knife in a sheath in cargo pants in a plastic bag in a backpack" ) {
-        item backpack( "backpack" );
-        item plastic_bag( "bag_plastic" );
-        item cargo_pants( "pants_cargo" );
-        item sheath( "sheath" );
-        item knife( "knife_hunting" );
+        item backpack( itype_backpack );
+        item plastic_bag( itype_bag_plastic );
+        item cargo_pants( itype_pants_cargo );
+        item sheath( itype_sheath );
+        item knife( itype_knife_hunting );
 
         avatar guy;
         guy.set_body();
@@ -71,7 +75,6 @@ TEST_CASE( "Wield_time_test", "[wield]" )
         item_location backpack_loc( guy, & **item_iter );
         backpack_loc->put_in( plastic_bag, pocket_type::CONTAINER );
         REQUIRE( backpack_loc->num_item_stacks() == 1 );
-        REQUIRE( guy.mutation_value( "obtain_cost_multiplier" ) == 1.0 );
 
         item_location plastic_bag_loc( backpack_loc, &backpack_loc->only_item() );
         plastic_bag_loc->put_in( cargo_pants, pocket_type::CONTAINER );
@@ -97,7 +100,6 @@ TEST_CASE( "Wield_time_test", "[wield]" )
     SECTION( "Wielding without hand encumbrance" ) {
         avatar guy;
         clear_character( guy );
-        REQUIRE( guy.mutation_value( "obtain_cost_multiplier" ) == 1.0 );
 
         wield_check_from_inv( guy, itype_aspirin, 300 );
         clear_character( guy );

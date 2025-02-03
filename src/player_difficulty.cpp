@@ -10,6 +10,10 @@
 
 static const damage_type_id damage_bash( "bash" );
 
+static const itype_id itype_bat( "bat" );
+static const itype_id itype_knife_combat( "knife_combat" );
+static const itype_id itype_machete( "machete" );
+
 static const profession_id profession_unemployed( "unemployed" );
 
 player_difficulty::player_difficulty()
@@ -39,7 +43,7 @@ void player_difficulty::npc_from_avatar( const avatar &u, npc &dummy )
     dummy.hobbies = u.hobbies;
 
     // set mutations
-    for( const trait_id &t : u.get_mutations( true ) ) {
+    for( const trait_id &t : u.get_functioning_mutations( true ) ) {
         dummy.set_mutation( t );
     }
 
@@ -66,7 +70,7 @@ void player_difficulty::reset_npc( Character &dummy )
     dummy.clear_vitamins();
 
     // This sets HP to max, clears addictions and morale,
-    // and sets hunger, thirst, fatigue and such to zero
+    // and sets hunger, thirst, sleepiness and such to zero
     dummy.environmental_revert_effect();
     // However, the above does not set stored kcal
     dummy.set_stored_kcal( dummy.get_healthy_kcal() );
@@ -180,9 +184,9 @@ double player_difficulty::calc_dps_value( const Character &u )
 {
     // check against the big three
     // efficient early weapons you can easily get access to
-    item early_piercing = item( "knife_combat" );
-    item early_cutting = item( "machete" );
-    item early_bashing = item( "bat" );
+    item early_piercing = item( itype_knife_combat );
+    item early_cutting = item( itype_machete );
+    item early_bashing = item( itype_bat );
 
     double baseline = std::max( u.weapon_value( early_piercing ),
                                 u.weapon_value( early_cutting ) );
@@ -379,11 +383,22 @@ std::string player_difficulty::difficulty_to_string( const avatar &u ) const
     std::string combat = get_combat_difficulty( n );
     std::string defense = get_defense_difficulty( n );
 
-    return string_format( "%s |  %s: %s  %s: %s  %s: %s  %s: %s  %s: %s",
-                          _( "Summary" ),
-                          _( "Lifestyle" ), genetics,
-                          _( "Knowledge" ), expertise,
-                          _( "Offense" ), combat,
-                          _( "Defense" ), defense,
-                          _( "Social" ), socials );
+    if( get_option<bool>( "SCREEN_READER_MODE" ) ) {
+        // Put value before label to ensure the screen reader reads the label when the value changes
+        return string_format( "%s | %s %s, %s %s, %s %s, %s %s, %s %s",
+                              _( "Summary" ),
+                              genetics, _( "Lifestyle" ),
+                              expertise, _( "Knowledge" ),
+                              combat, _( "Offense" ),
+                              defense, _( "Defense" ),
+                              socials, _( "Social" ) );
+    } else {
+        return string_format( "%s |  %s: %s  %s: %s  %s: %s  %s: %s  %s: %s",
+                              _( "Summary" ),
+                              _( "Lifestyle" ), genetics,
+                              _( "Knowledge" ), expertise,
+                              _( "Offense" ), combat,
+                              _( "Defense" ), defense,
+                              _( "Social" ), socials );
+    }
 }

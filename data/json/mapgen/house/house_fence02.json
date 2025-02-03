@@ -2,7 +2,6 @@
   {
     "type": "mapgen",
     "om_terrain": "house_fence02_1",
-    "weight": 250,
     "method": "json",
     "object": {
       "palettes": [
@@ -25,15 +24,15 @@
         "}.-(((oO____  h|  @@#-.}",
         "}.-(((#6612_   +    o-.}",
         "}.-(((#||||    |||++#-.}",
-        "}.-(((#t__+    |Q|dd#-.}",
+        "}.-(((#t~~+    |Q|dd#-.}",
         "}.-(((o8S9|RR  |+|||#-.}",
         "}.-/((#||||||    b=&o-.}",
         "}.-(((#¤yrrD|       *-.}",
         "}.-(((o@ h  +      L#-.}",
         "}.-(((#@   d|y  x  V#-.}",
         "}.-(((#||||||      so-.}",
-        "}.-/((oZ__`        E#..}",
-        "}.--<-#W_<|RRRlHHHly#^.}",
+        "}.-/((oZ~~`        E#..}",
+        "}.--<-#W~<|RRRlHHHly#^.}",
         "}.----##o#######o####..}",
         "}...........^..........}",
         "}}}}}}}}}}}}}}}}}}}}}}}}"
@@ -42,13 +41,13 @@
         "}": "t_privacy_fence",
         "/": "t_column",
         ")": "t_pavement",
-        "W": "t_linoleum_gray",
-        "Z": "t_linoleum_gray",
+        "W": { "param": "linoleum_color_bathroom", "fallback": "t_linoleum_gray" },
+        "Z": { "param": "linoleum_color_bathroom", "fallback": "t_linoleum_gray" },
         "`": "t_door_locked",
         "(": "t_dirt",
         "$": "t_dirtmound",
         "%": [ [ "t_region_tree_nut", 5 ], [ "t_region_tree_shade", 4 ], [ "t_region_tree_fruit", 2 ] ],
-        "_": "t_linoleum_gray",
+        "_": { "param": "linoleum_color_kitchen", "fallback": "t_linoleum_gray" },
         "Q": "t_null",
         "?": "t_region_groundcover_urban"
       },
@@ -64,7 +63,6 @@
   {
     "type": "mapgen",
     "om_terrain": "house_fence02_2",
-    "weight": 250,
     "method": "json",
     "object": {
       "palettes": [ "standard_domestic_palette", "standard_domestic_lino_kitchen", "standard_domestic_lino_bathroom" ],
@@ -85,7 +83,7 @@
         "...),,#@@ D|i   A__5#...",
         "...),,#|||||i  h6__O#...",
         "...),,#8S|RR  ff4__Jo...",
-        "...),,o__+   hff31FJ#...",
+        "...),,o~~+   hff31FJ#...",
         "...),,#t9|y   ||||||#...",
         "...),,#|||L   |T rrr#...",
         "...),,*       +   h o...",
@@ -96,15 +94,15 @@
         "........................"
       ],
       "terrain": {
-        "_": "t_linoleum_gray",
-        ")": "t_railing_v",
+        "_": { "param": "linoleum_color_kitchen", "fallback": "t_linoleum_gray" },
+        ")": "t_railing",
         ",": "t_floor_noroof",
         "`": "t_door_locked",
         "₸": "t_floor_noroof",
         "$": "t_floor_noroof",
         ".": "t_open_air",
         "q": "t_floor_noroof",
-        "A": "t_linoleum_gray"
+        "A": { "param": "linoleum_color_kitchen", "fallback": "t_linoleum_gray" }
       },
       "furniture": { "$": "f_tourist_table", "=": "f_table" },
       "items": { "=": { "item": "table_foyer", "chance": 50 } },
@@ -114,7 +112,6 @@
   {
     "type": "mapgen",
     "om_terrain": "house_fence02_roof",
-    "weight": 250,
     "method": "json",
     "object": {
       "palettes": [ "roof_palette" ],
@@ -130,7 +127,7 @@
         "      ---------------   ",
         "      -.............-   ",
         "      -.............-   ",
-        "      -.............-   ",
+        "      -....1........-   ",
         "      -..........X..-   ",
         "      -.............-   ",
         "      -.............-   ",

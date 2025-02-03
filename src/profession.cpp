@@ -13,6 +13,7 @@
 #include "avatar.h"
 #include "calendar.h"
 #include "debug.h"
+#include "effect_on_condition.h"
 #include "flag.h"
 #include "generic_factory.h"
 #include "item.h"
@@ -24,12 +25,17 @@
 #include "mutation.h"
 #include "options.h"
 #include "past_games_info.h"
+#include "past_achievements_info.h"
 #include "pimpl.h"
 #include "translations.h"
 #include "type_id.h"
 #include "visitable.h"
+#include "trait_group.h"
+#include "npc_class.h"
 
 static const achievement_id achievement_achievement_arcade_mode( "achievement_arcade_mode" );
+static const trait_group::Trait_group_tag
+Trait_group_BG_survival_story_UNIVERSAL( "BG_survival_story_UNIVERSAL" );
 
 namespace
 {
@@ -41,7 +47,7 @@ static class json_item_substitution
     public:
         void reset();
         void load( const JsonObject &jo );
-        void check_consistency();
+        void check_consistency() const;
 
     private:
         struct trait_requirements {
@@ -110,7 +116,7 @@ void profession_blacklist::load( const JsonObject &jo, const std::string_view )
     mandatory( jo, false, "professions", professions );
 }
 
-void profession_blacklist::finalize()
+void profession_blacklist::check_consistency() const
 {
     for( const string_id<profession> &p : professions ) {
         if( !p.is_valid() ) {
@@ -138,6 +144,7 @@ profession::profession()
       _name_female( no_translation( "null" ) ),
       _description_male( no_translation( "null" ) ),
       _description_female( no_translation( "null" ) )
+
 {
 }
 
@@ -246,8 +253,12 @@ void profession::load( const JsonObject &jo, const std::string_view )
         _description_male = to_translation( "prof_desc_male", desc_male );
         _description_female = to_translation( "prof_desc_female", desc_female );
     }
+    std::string background_group_id;
+    optional( jo, was_loaded, "npc_background", _starting_npc_background,
+              Trait_group_BG_survival_story_UNIVERSAL );
     optional( jo, was_loaded, "age_lower", age_lower, 16 );
     optional( jo, was_loaded, "age_upper", age_upper, 55 );
+    optional( jo, was_loaded, "starting_cash", _starting_cash );
 
     if( jo.has_string( "vehicle" ) ) {
         _starting_vehicle = vproto_id( jo.get_string( "vehicle" ) );
@@ -267,6 +278,12 @@ void profession::load( const JsonObject &jo, const std::string_view )
             int level = subobj.get_int( "level" );
             spell_id sp = spell_id( subobj.get_string( "id" ) );
             _starting_spells.emplace( sp, level );
+        }
+    }
+
+    if( jo.has_member( "effect_on_conditions" ) ) {
+        for( JsonValue jv : jo.get_array( "effect_on_conditions" ) ) {
+            effect_on_conditions.push_back( effect_on_conditions::load_inline_eoc( jv, "" ) );
         }
     }
 
@@ -369,7 +386,7 @@ void profession::check_definitions()
     for( const profession &prof : all_profs.get_all() ) {
         prof.check_definition();
     }
-    prof_blacklist.finalize();
+    prof_blacklist.check_consistency();
 }
 
 void profession::check_item_definitions( const itypedecvec &items ) const
@@ -502,6 +519,11 @@ static time_point advanced_spawn_time()
 signed int profession::point_cost() const
 {
     return _point_cost;
+}
+
+std::optional<int> profession::starting_cash() const
+{
+    return _starting_cash;
 }
 
 static void clear_faults( item &it )
@@ -649,6 +671,19 @@ std::set<trait_id> profession::get_forbidden_traits() const
     return _forbidden_traits;
 }
 
+trait_id profession::pick_background() const
+{
+    if( mutation_branch::get_group( _starting_npc_background ) == nullptr ) {
+        debugmsg( "invalid trait group ID for profession: " + id.str() );
+        return trait_id();
+    }
+    const trait_group::Trait_list &background = trait_group::traits_from( _starting_npc_background );
+    if( !background.empty() ) {
+        return background.front().trait;
+    }
+    return trait_id();
+}
+
 profession::StartingSkillList profession::skills() const
 {
     return _starting_skills;
@@ -671,19 +706,15 @@ ret_val<void> profession::can_afford( const Character &you, const int points ) c
 ret_val<void> profession::can_pick() const
 {
     // if meta progression is disabled then skip this
-    if( get_past_games().achievement( achievement_achievement_arcade_mode ) ||
+    if( get_past_achievements().is_completed( achievement_achievement_arcade_mode ) ||
         !get_option<bool>( "META_PROGRESS" ) ) {
         return ret_val<void>::make_success();
     }
 
     if( _requirement ) {
-        const achievement_completion_info *other_games = get_past_games().achievement(
-                    _requirement.value()->id );
-        if( !other_games ) {
-            return ret_val<void>::make_failure(
-                       _( "You must complete the achievement \"%s\" to unlock this profession." ),
-                       _requirement.value()->name() );
-        } else if( other_games->games_completed.empty() ) {
+        const bool has_req = get_past_achievements().is_completed(
+                                 _requirement.value()->id );
+        if( !has_req ) {
             return ret_val<void>::make_failure(
                        _( "You must complete the achievement \"%s\" to unlock this profession." ),
                        _requirement.value()->name() );
@@ -714,13 +745,18 @@ std::map<spell_id, int> profession::spells() const
 
 void profession::learn_spells( avatar &you ) const
 {
-    for( const std::pair<spell_id, int> spell_pair : spells() ) {
+    for( const std::pair<const spell_id, int> &spell_pair : spells() ) {
         you.magic->learn_spell( spell_pair.first, you, true );
         spell &sp = you.magic->get_spell( spell_pair.first );
         while( sp.get_level() < spell_pair.second && !sp.is_max_level( you ) ) {
             sp.gain_level( you );
         }
     }
+}
+
+std::vector<effect_on_condition_id> profession::get_eocs() const
+{
+    return effect_on_conditions;
 }
 
 // item_substitution stuff:
@@ -788,7 +824,7 @@ void json_item_substitution::load( const JsonObject &jo )
             itype_id old_it;
             sub.read( "item", old_it, true );
             if( check_duplicate_item( old_it ) ) {
-                sub.throw_error( "Duplicate definition of item" );
+                sub.throw_error( "Item substitutions can only be defined once.  Items with multiple substition traits should use arrays." );
             }
             s.trait_reqs.present.emplace_back( jo.get_string( "trait" ) );
             for( const JsonValue info : sub.get_array( "new" ) ) {
@@ -804,7 +840,7 @@ void json_item_substitution::load( const JsonObject &jo )
     }
 }
 
-void json_item_substitution::check_consistency()
+void json_item_substitution::check_consistency() const
 {
     auto check_if_trait = []( const trait_id & t ) {
         if( !t.is_valid() ) {

@@ -1,13 +1,16 @@
-#include <iosfwd>
 #include <memory>
-#include <set>
 #include <string>
 
+#include "avatar.h"
 #include "calendar.h"
 #include "cata_catch.h"
 #include "character.h"
+#include "color.h"
 #include "flag.h"
 #include "item.h"
+#include "item_category.h"
+#include "item_pocket.h"
+#include "item_tname.h"
 #include "itype.h"
 #include "options_helpers.h"
 #include "pocket_type.h"
@@ -19,10 +22,37 @@ static const fault_id fault_gun_dirt( "fault_gun_dirt" );
 
 static const item_category_id item_category_veh_parts( "veh_parts" );
 
+static const itype_id itype_backpack( "backpack" );
 static const itype_id itype_backpack_hiking( "backpack_hiking" );
+static const itype_id itype_bag_garbage( "bag_garbage" );
+static const itype_id itype_bag_plastic( "bag_plastic" );
+static const itype_id itype_carrot( "carrot" );
+static const itype_id itype_coffee_pod( "coffee_pod" );
+static const itype_id itype_corpse( "corpse" );
+static const itype_id itype_hammer( "hammer" );
+static const itype_id itype_hk_mp5( "hk_mp5" );
+static const itype_id itype_holster( "holster" );
+static const itype_id itype_jeans( "jeans" );
+static const itype_id itype_juniper( "juniper" );
+static const itype_id itype_katana( "katana" );
+static const itype_id itype_longshirt( "longshirt" );
+static const itype_id itype_milkshake( "milkshake" );
+static const itype_id itype_mushroom( "mushroom" );
+static const itype_id itype_pants( "pants" );
+static const itype_id itype_pepper( "pepper" );
+static const itype_id itype_pine_nuts( "pine_nuts" );
+static const itype_id itype_protein_bar_evac( "protein_bar_evac" );
 static const itype_id itype_purse( "purse" );
 static const itype_id itype_rock( "rock" );
+static const itype_id itype_salt( "salt" );
+static const itype_id itype_sauerkraut( "sauerkraut" );
+static const itype_id itype_sheet_cotton( "sheet_cotton" );
+static const itype_id itype_test_baseball( "test_baseball" );
+static const itype_id itype_test_load_bearing_vest( "test_load_bearing_vest" );
 static const itype_id itype_test_rock( "test_rock" );
+static const itype_id itype_wheel( "wheel" );
+static const itype_id itype_wheel_armor( "wheel_armor" );
+static const itype_id itype_wheel_wide( "wheel_wide" );
 
 static const skill_id skill_survival( "survival" );
 
@@ -51,7 +81,7 @@ TEST_CASE( "food_with_hidden_effects", "[item][tname][hidden]" )
     player_character.clear_mutations();
 
     GIVEN( "food with hidden poison" ) {
-        item coffee = item( "coffee_pod" );
+        item coffee = item( itype_coffee_pod );
         REQUIRE( coffee.is_food() );
         REQUIRE( coffee.has_flag( flag_HIDDEN_POISON ) );
 
@@ -75,7 +105,7 @@ TEST_CASE( "food_with_hidden_effects", "[item][tname][hidden]" )
     }
 
     GIVEN( "food with hidden hallucinogen" ) {
-        item mushroom = item( "mushroom" );
+        item mushroom = item( itype_mushroom );
         mushroom.set_flag( flag_HIDDEN_HALLU );
         REQUIRE( mushroom.is_food() );
         REQUIRE( mushroom.has_flag( flag_HIDDEN_HALLU ) );
@@ -103,7 +133,7 @@ TEST_CASE( "food_with_hidden_effects", "[item][tname][hidden]" )
 TEST_CASE( "items_with_a_temperature_flag", "[item][tname][temperature]" )
 {
     GIVEN( "food that can melt" ) {
-        item shake( "milkshake" );
+        item shake( itype_milkshake );
         REQUIRE( shake.is_food() );
         REQUIRE( shake.has_flag( flag_MELTS ) );
 
@@ -134,7 +164,7 @@ TEST_CASE( "items_with_a_temperature_flag", "[item][tname][temperature]" )
     }
 
     GIVEN( "food that cannot melt" ) {
-        item nut( "pine_nuts" );
+        item nut( itype_pine_nuts );
         REQUIRE( nut.is_food() );
         REQUIRE_FALSE( nut.has_flag( flag_MELTS ) );
 
@@ -198,7 +228,7 @@ TEST_CASE( "items_with_a_temperature_flag", "[item][tname][temperature]" )
     }
 
     GIVEN( "an item that is not food or a corpse" ) {
-        item hammer( "hammer" );
+        item hammer( itype_hammer );
         REQUIRE_FALSE( hammer.is_food() );
         REQUIRE_FALSE( hammer.is_corpse() );
 
@@ -233,63 +263,36 @@ TEST_CASE( "items_with_a_temperature_flag", "[item][tname][temperature]" )
 
 TEST_CASE( "wet_item", "[item][tname][wet]" )
 {
-    item rag( "rag" );
-    rag.set_flag( flag_WET );
-    REQUIRE( rag.has_flag( flag_WET ) );
+    item sheet_cotton( itype_sheet_cotton );
+    sheet_cotton.set_flag( flag_WET );
+    REQUIRE( sheet_cotton.has_flag( flag_WET ) );
 
-    CHECK( rag.tname() == "rag (wet)" );
+    CHECK( sheet_cotton.tname() == "cotton sheet (wet)" );
 }
 
 TEST_CASE( "filthy_item", "[item][tname][filthy]" )
 {
-    item rag( "rag" );
-    rag.set_flag( flag_FILTHY );
-    REQUIRE( rag.is_filthy() );
+    item sheet_cotton( itype_sheet_cotton );
+    sheet_cotton.set_flag( flag_FILTHY );
+    REQUIRE( sheet_cotton.is_filthy() );
 
-    CHECK( rag.tname() == "rag (filthy)" );
+    CHECK( sheet_cotton.tname() == "cotton sheet (filthy)" );
 }
 
 TEST_CASE( "diamond_item", "[item][tname][diamond]" )
 {
-    item katana( "katana" );
+    item katana( itype_katana );
     katana.set_flag( flag_DIAMOND );
     REQUIRE( katana.has_flag( flag_DIAMOND ) );
 
     CHECK( katana.tname() == "diamond katana" );
 }
 
-TEST_CASE( "truncated_item_name", "[item][tname][truncate]" )
-{
-    SECTION( "plain item name can be truncated" ) {
-        item katana( "katana" );
-
-        CHECK( katana.tname() == "katana" );
-        CHECK( katana.tname( 1, false, 5 ) == "katan" );
-    }
-
-    // TODO: color-coded or otherwise embellished item name can be truncated
-}
-
-TEST_CASE( "engine_displacement_volume", "[item][tname][engine]" )
-{
-    item vtwin = item( "v2_combustion" );
-    item v12diesel = item( "v12_diesel" );
-    item turbine = item( "small_turbine_engine" );
-
-    REQUIRE( vtwin.engine_displacement() == 60 );
-    REQUIRE( v12diesel.engine_displacement() == 700 );
-    REQUIRE( turbine.engine_displacement() == 2700 );
-
-    CHECK( vtwin.tname() == "0.6L V2 engine" );
-    CHECK( v12diesel.tname() == "7L V12 diesel engine" );
-    CHECK( turbine.tname() == "27L 1,350 HP gas turbine engine" );
-}
-
 TEST_CASE( "wheel_diameter", "[item][tname][wheel]" )
 {
-    item wheel17 = item( "wheel" );
-    item wheel24 = item( "wheel_wide" );
-    item wheel32 = item( "wheel_armor" );
+    item wheel17 = item( itype_wheel );
+    item wheel24 = item( itype_wheel_wide );
+    item wheel32 = item( itype_wheel_armor );
 
     REQUIRE( wheel17.type->wheel->diameter == 17 );
     REQUIRE( wheel24.type->wheel->diameter == 24 );
@@ -303,8 +306,8 @@ TEST_CASE( "wheel_diameter", "[item][tname][wheel]" )
 TEST_CASE( "item_health_or_damage_bar", "[item][tname][health][damage]" )
 {
     GIVEN( "some clothing" ) {
-        item shirt( "longshirt" );
-        item deg_test( "test_baseball" );
+        item shirt( itype_longshirt );
+        item deg_test( itype_test_baseball );
         REQUIRE( shirt.is_armor() );
         REQUIRE( deg_test.type->category_force == item_category_veh_parts );
 
@@ -432,8 +435,8 @@ TEST_CASE( "item_health_or_damage_bar", "[item][tname][health][damage]" )
 
     GIVEN( "ITEM_HEALTH option set to 'desc'" ) {
         override_option opt( "ITEM_HEALTH", "descriptions" );
-        item shirt( "longshirt" );
-        item corpse( "corpse" );
+        item shirt( itype_longshirt );
+        item corpse( itype_corpse );
         REQUIRE( shirt.is_armor() );
         int dam25 = shirt.max_damage() / 4;
 
@@ -531,7 +534,7 @@ TEST_CASE( "item_health_or_damage_bar", "[item][tname][health][damage]" )
 
     GIVEN( "ITEM_HEALTH option set to 'both'" ) {
         override_option opt( "ITEM_HEALTH", "both" );
-        item shirt( "longshirt" );
+        item shirt( itype_longshirt );
         REQUIRE( shirt.is_armor() );
         int dam25 = shirt.max_damage() / 4;
 
@@ -602,7 +605,7 @@ TEST_CASE( "item_health_or_damage_bar", "[item][tname][health][damage]" )
 TEST_CASE( "weapon_fouling", "[item][tname][fouling][dirt]" )
 {
     GIVEN( "a gun with potential fouling" ) {
-        item gun( "hk_mp5" );
+        item gun( itype_hk_mp5 );
 
         Character &player_character = get_player_character();
         // Ensure the player and gun are normal size to prevent "too big" or "too small" suffix in tname
@@ -663,8 +666,8 @@ TEST_CASE( "weapon_fouling", "[item][tname][fouling][dirt]" )
 // make sure ordering still works with pockets
 TEST_CASE( "molle_vest_additional_pockets", "[item][tname]" )
 {
-    item addition_vest( "test_load_bearing_vest" );
-    addition_vest.get_contents().add_pocket( item( "holster" ) );
+    item addition_vest( itype_test_load_bearing_vest );
+    addition_vest.get_contents().add_pocket( item( itype_holster ) );
 
     CHECK( addition_vest.tname( 1 ) ==
            "<color_c_green>++</color>\u00A0load bearing vest+1" );
@@ -675,6 +678,10 @@ TEST_CASE( "nested_items_tname", "[item][tname]" )
     item backpack_hiking( itype_backpack_hiking );
     item purse( itype_purse );
     item rock( itype_test_rock );
+    item bag( itype_bag_plastic );
+    item bag_garbage( itype_bag_garbage );
+    item hammer( itype_hammer );
+    rock.clear_itype_variant();
     item rock2( itype_rock );
     const std::string color_pref =
         "<color_c_green>++</color>\u00A0";
@@ -686,6 +693,7 @@ TEST_CASE( "nested_items_tname", "[item][tname]" )
         backpack_hiking.put_in( rock, pocket_type::CONTAINER );
 
         std::string const rock_nested_tname = colorize( rock.tname(), rock.color_in_inventory() );
+        std::string const hammers_nested_tname = colorize( hammer.tname( 2 ), rock.color_in_inventory() );
         std::string const rocks_nested_tname = colorize( rock.tname( 2 ), rock.color_in_inventory() );
         REQUIRE( rock_nested_tname == "<color_c_light_gray>TEST rock</color>" );
         SECTION( "single rock" ) {
@@ -695,12 +703,51 @@ TEST_CASE( "nested_items_tname", "[item][tname]" )
         SECTION( "several rocks" ) {
             backpack_hiking.put_in( rock, pocket_type::CONTAINER );
             CHECK( backpack_hiking.tname( 1 ) == color_pref + "hiking backpack " + nesting_sym +
-                   " " + rocks_nested_tname + " (2)" );
+                   " 2 " + rocks_nested_tname );
         }
         SECTION( "several stacks" ) {
+            REQUIRE( rock.get_category_shallow().id != purse.get_category_shallow().id );
+            backpack_hiking.put_in( rock, pocket_type::CONTAINER );
+            backpack_hiking.put_in( purse, pocket_type::CONTAINER );
+            CHECK( backpack_hiking.tname( 1 ) == color_pref + "hiking backpack " + nesting_sym + " 2 items" );
+        }
+        SECTION( "several stacks of same category" ) {
+            REQUIRE( rock.get_category_shallow().id == rock2.get_category_shallow().id );
             backpack_hiking.put_in( rock, pocket_type::CONTAINER );
             backpack_hiking.put_in( rock2, pocket_type::CONTAINER );
-            CHECK( backpack_hiking.tname( 1 ) == color_pref + "hiking backpack " + nesting_sym + " 2 items" );
+            CHECK( backpack_hiking.tname( 1 ) ==
+                   color_pref + "hiking backpack " + nesting_sym + " 2 " +
+                   colorize( rock.get_category_shallow().name_noun( 2 ), c_magenta ) );
+        }
+        SECTION( "several stacks of variants" ) {
+            item rock_blue( itype_test_rock );
+            item rock_green( itype_test_rock );
+            rock_blue.set_itype_variant( "test_rock_blue" );
+            rock_green.set_itype_variant( "test_rock_green" );
+            backpack_hiking.put_in( rock_blue, pocket_type::CONTAINER );
+            backpack_hiking.put_in( rock_green, pocket_type::CONTAINER );
+            CHECK( backpack_hiking.tname( 1 ) == color_pref + "hiking backpack " + nesting_sym +
+                   " 3 " + rocks_nested_tname );
+        }
+        SECTION( "dominant type" ) {
+            backpack_hiking.clear_items();
+            REQUIRE( backpack_hiking.put_in( hammer, pocket_type::CONTAINER ).success() );
+            REQUIRE( backpack_hiking.put_in( hammer, pocket_type::CONTAINER ).success() );
+            REQUIRE( backpack_hiking.put_in( bag, pocket_type::CONTAINER ).success() );
+            CHECK( backpack_hiking.tname( 1 ) == color_pref + "hiking backpack " + nesting_sym + " 2 " +
+                   hammers_nested_tname + " / 3 items" );
+        }
+        SECTION( "dominant category" ) {
+            backpack_hiking.clear_items();
+            REQUIRE( rock.get_category_shallow().id == rock2.get_category_shallow().id );
+            REQUIRE( backpack_hiking.put_in( rock, pocket_type::CONTAINER ).success() );
+            REQUIRE( backpack_hiking.put_in( rock2, pocket_type::CONTAINER ).success() );
+            REQUIRE( rock.get_category_of_contents().id == rock2.get_category_of_contents().id );
+            REQUIRE( rock.get_category_of_contents().id != purse.get_category_of_contents().id );
+            REQUIRE( backpack_hiking.put_in( purse, pocket_type::CONTAINER ).success() );
+            CHECK( backpack_hiking.tname( 1 ) ==
+                   color_pref + "hiking backpack " + nesting_sym + " 2 " +
+                   colorize( rock.get_category_shallow().name_noun( 2 ), c_magenta ) + " / 3 items" );
         }
         SECTION( "container has whitelist" ) {
             std::string const wlmark = "⁺";
@@ -750,19 +797,181 @@ TEST_CASE( "nested_items_tname", "[item][tname]" )
             backpack_hiking.put_in( purse, pocket_type::CONTAINER );
 
             CHECK( backpack_hiking.tname( 1 ) == color_pref + "hiking backpack " + nesting_sym +
-                   " " + purse_color + color_pref + "purses" + color_end_tag + " (2)" );
+                   " 2 " + purse_color + color_pref + "purses" + color_end_tag );
+        }
+        SECTION( "dominant nested category" ) {
+            REQUIRE( bag.put_in( rock, pocket_type::CONTAINER ).success() );
+            REQUIRE( bag_garbage.put_in( rock, pocket_type::CONTAINER ).success() );
+            REQUIRE( bag.get_category_of_contents().id == rock.get_category_of_contents().id );
+            REQUIRE( bag_garbage.get_category_of_contents().id == rock.get_category_of_contents().id );
+            REQUIRE( backpack_hiking.put_in( bag_garbage, pocket_type::CONTAINER ).success() );
+            REQUIRE( backpack_hiking.put_in( bag, pocket_type::CONTAINER ).success() );
+            item bag2( itype_bag_plastic );
+            REQUIRE( bag2.put_in( hammer, pocket_type::CONTAINER ).success() );
+            REQUIRE( bag.get_category_of_contents().id != bag2.get_category_of_contents().id );
+            REQUIRE( backpack_hiking.put_in( bag2, pocket_type::CONTAINER ).success() );
+            CHECK( backpack_hiking.tname( 1 ) ==
+                   color_pref + "hiking backpack " + nesting_sym + " 2 " +
+                   colorize( rock.get_category_shallow().name_noun( 2 ), c_magenta ) + " / 3 items" );
+        }
+    }
+    tname::segment_bitset type_only;
+    type_only.set( tname::segments::TYPE );
+    SECTION( "aggregated food stats" ) {
+        avatar &u = get_avatar();
+        item salt( itype_salt );
+        std::string const cat_food_str = salt.get_category_shallow().name_noun( 2 );
+        item pepper( itype_pepper );
+        item juniper( itype_juniper );
+        item ration( itype_protein_bar_evac );
+        item carrot( itype_carrot );
+        item sauerkraut( itype_sauerkraut );
+        item bag( itype_bag_plastic );
+        std::string const carrots_tname = carrot.tname( 2, type_only );
+
+        SECTION( "inedible" ) {
+            REQUIRE( ( salt.is_food() && pepper.is_food() && juniper.is_food() && ration.is_food() &&
+                       carrot.is_food() && sauerkraut.is_food() ) );
+
+            REQUIRE( ( u.will_eat( salt ).value() == edible_rating::INEDIBLE &&
+                       u.will_eat( pepper ).value() == edible_rating::INEDIBLE ) );
+            REQUIRE( bag.put_in( salt, pocket_type::CONTAINER ).success() );
+            REQUIRE( bag.put_in( pepper, pocket_type::CONTAINER ).success() );
+            CHECK( bag.tname( 1 ) == "plastic bag > 2 " + colorize( cat_food_str, c_dark_gray ) );
+        }
+
+        SECTION( "non-perishable" ) {
+            REQUIRE( ( !juniper.goes_bad() && !ration.goes_bad() ) );
+            REQUIRE( ( u.will_eat( juniper ).value() == edible_rating::EDIBLE &&
+                       u.will_eat( ration ).value() == edible_rating::EDIBLE ) );
+            REQUIRE( bag.put_in( juniper, pocket_type::CONTAINER ).success() );
+            REQUIRE( bag.put_in( ration, pocket_type::CONTAINER ).success() );
+            CHECK( bag.tname( 1 ) == "plastic bag > 2 " + colorize( cat_food_str, c_cyan ) );
+        }
+
+        SECTION( "perishable" ) {
+            bool same_item = GENERATE( true, false );
+            bool rotten = GENERATE( true, false );
+            bool both_rotten = rotten ? GENERATE( true, false ) : false;
+            bool frozen = GENERATE( true, false );
+            bool both_frozen = frozen ? GENERATE( true, false ) : false;
+            bool mushy = !rotten ? GENERATE( true, false ) : false;
+            bool both_mushy = mushy ? GENERATE( true, false ) : false;
+            CAPTURE( same_item, rotten, both_rotten, mushy, both_mushy, frozen, both_frozen );
+
+            nc_color color = c_light_cyan;
+            item second_food( same_item ? carrot : sauerkraut );
+
+            std::string fresh_str( " (fresh)" );
+            std::string frozen_str;
+
+            REQUIRE( ( carrot.goes_bad() && second_food.goes_bad() ) );
+            REQUIRE( ( u.will_eat( carrot ).value() == edible_rating::EDIBLE &&
+                       u.will_eat( second_food ).value() == edible_rating::EDIBLE ) );
+            REQUIRE( ( carrot.is_fresh() && second_food.is_fresh() ) );
+
+            if( rotten ) {
+                carrot.set_relative_rot( 99 );
+                REQUIRE_FALSE( carrot.is_fresh() );
+                fresh_str = std::string{};
+                if( both_rotten ) {
+                    second_food.set_relative_rot( 99 );
+                    fresh_str = " (rotten)";
+                    color = c_brown;
+                }
+            } else if( mushy ) {
+                carrot.set_flag( flag_MUSHY );
+                fresh_str = std::string{};
+                if( both_mushy ) {
+                    second_food.set_flag( flag_MUSHY );
+                    fresh_str = " (mushy)";
+                }
+            }
+            if( frozen ) {
+                carrot.set_flag( flag_FROZEN );
+                if( both_frozen ) {
+                    second_food.set_flag( flag_FROZEN );
+                    frozen_str = " (frozen)";
+                    color = c_dark_gray;
+                }
+            }
+            REQUIRE( bag.put_in( carrot, pocket_type::CONTAINER ).success() );
+            REQUIRE( bag.put_in( second_food, pocket_type::CONTAINER ).success() );
+            if( same_item ) {
+                CHECK( bag.tname( 1 ) ==
+                       "plastic bag > 2 " +
+                       colorize( carrots_tname + fresh_str + frozen_str, color ) );
+            } else {
+                CHECK( bag.tname( 1 ) == "plastic bag > 2 " +
+                       colorize( cat_food_str, color ) + fresh_str +
+                       frozen_str );
+            }
         }
     }
 
-    SECTION( "non-standard pocket: software" ) {
-        item usb_drive( "usb_drive" );
-        item medisoft( "software_medical" );
-        std::string const medisoft_nested_tname = colorize( medisoft.tname(),
-                medisoft.color_in_inventory() );
-        REQUIRE( usb_drive.is_software_storage() );
-        REQUIRE( medisoft.is_software() );
-        REQUIRE( medisoft_nested_tname == "<color_c_light_gray>MediSoft</color>" );
-        usb_drive.put_in( medisoft, pocket_type::SOFTWARE );
-        CHECK( usb_drive.tname( 1 ) == "USB drive " + nesting_sym + " " + medisoft_nested_tname );
+    SECTION( "aggregated clothing stats" ) {
+        item pants( itype_pants );
+        pants.clear_itype_variant();
+        pants.set_flag( flag_FIT );
+        bool same_item = GENERATE( true, false );
+        item second_item( same_item ? itype_pants : itype_jeans );
+        second_item.clear_itype_variant();
+        second_item.set_flag( flag_FIT );
+        REQUIRE( ( pants.has_flag( flag_VARSIZE ) && second_item.has_flag( flag_VARSIZE ) ) );
+
+        bool damaged = GENERATE( true, false );
+        bool both_damaged = damaged ? GENERATE( true, false ) : false;
+        bool unfit = GENERATE( true, false );
+        bool both_unfit = unfit ? GENERATE( true, false ) : false;
+        CAPTURE( same_item, damaged, both_damaged, unfit, both_unfit );
+
+        std::string const cat_cl_str = pants.get_category_shallow().name_noun( 2 );
+        std::string const pants_tname = pants.tname( 2, type_only );
+        std::string dura_str = pants.durability_indicator();
+        std::string fit_str;
+
+        if( damaged ) {
+            pants.inc_damage();
+            dura_str = std::string{};
+            if( both_damaged ) {
+                second_item.inc_damage();
+                dura_str = pants.durability_indicator();
+            }
+        }
+        if( unfit ) {
+            pants.unset_flag( flag_FIT );
+            if( both_unfit ) {
+                second_item.unset_flag( flag_FIT );
+                fit_str = " (poor fit)";
+            }
+        }
+
+        REQUIRE( bag.put_in( pants, pocket_type::CONTAINER ).success() );
+        REQUIRE( bag.put_in( second_item, pocket_type::CONTAINER ).success() );
+
+        if( same_item ) {
+            CHECK( bag.tname( 1 ) == "plastic bag > 2 " +
+                   colorize( dura_str + pants_tname + fit_str, c_light_gray ) );
+        } else {
+            CHECK( bag.tname( 1 ) == "plastic bag > 2 " + dura_str +
+                   colorize( cat_cl_str, c_magenta ) + fit_str );
+        }
     }
 }
+
+#ifdef LOCALIZE
+TEST_CASE( "tname_i18n_order", "[item][tname][translations]" )
+{
+    item backpack( itype_backpack );
+    backpack.burnt = 1;
+    backpack.set_flag( flag_FILTHY );
+    REQUIRE( backpack.tname() == "<color_c_green>++</color> burnt backpack (filthy)" );
+
+    set_language( "ru" );
+    TranslationManager::GetInstance().LoadDocuments( { "./data/mods/TEST_DATA/lang/mo/ru/LC_MESSAGES/TEST_DATA.mo" } );
+    CHECK( backpack.tname() ==
+           "<color_c_green>++</color> backpack (burnt) (filthy)" );
+
+    set_language( "en" );
+}
+#endif

@@ -1,5 +1,10 @@
-/* Entry point and main loop for Cataclysm
+/* Main Loop for cataclysm
+ * Linux only I guess
+ * But maybe not
+ * Who knows
  */
+
+// KG: Yes, the above is inaccurate now. It's also a poem, it stays.
 
 // IWYU pragma: no_include <sys/signal.h>
 #include <algorithm>
@@ -42,7 +47,6 @@
 #include "get_version.h"
 #include "help.h"
 #include "input.h"
-#include "loading_ui.h"
 #include "main_menu.h"
 #include "mapsharing.h"
 #include "memory_fast.h"
@@ -55,9 +59,7 @@
 #include "translations.h"
 #include "type_id.h"
 #include "ui_manager.h"
-#if defined(MACOSX) || defined(__CYGWIN__)
-#   include <unistd.h> // getpid()
-#endif
+#include "cata_imgui.h"
 
 #if defined(EMSCRIPTEN)
 #include <emscripten.h>
@@ -70,7 +72,7 @@
 
 class ui_adaptor;
 
-#if defined(TILES)
+#if defined(TILES) || defined(SDL_SOUND)
 #   if defined(_MSC_VER) && defined(USE_VCPKG)
 #      include <SDL2/SDL_version.h>
 #   else
@@ -134,7 +136,7 @@ int start_logger( const char *app_name )
 namespace
 {
 
-#if defined(_WIN32)
+#if defined(_WIN32) and defined(TILES)
 // Used only if AttachConsole() works
 FILE *CONOUT;
 #endif
@@ -156,19 +158,8 @@ void exit_handler( int s )
         signal( SIGABRT, SIG_DFL );
 #endif
 
-#if !defined(_WIN32)
-        if( s == 2 ) {
-            struct sigaction sigIntHandler;
-            sigIntHandler.sa_handler = SIG_DFL;
-            sigemptyset( &sigIntHandler.sa_mask );
-            sigIntHandler.sa_flags = 0;
-            sigaction( SIGINT, &sigIntHandler, nullptr );
-            kill( getpid(), s );
-        } else
-#endif
-        {
-            exit( exit_status );
-        }
+        imclient.reset();
+        exit( exit_status );
     }
     inp_mngr.set_timeout( old_timeout );
     ui_manager::redraw_invalidated();
@@ -281,6 +272,7 @@ void process_args( const char **argv, int argc, const std::vector<arg_handler> &
 struct cli_opts {
     int seed = time( nullptr );
     bool verifyexit = false;
+    bool noverify = false;
     bool check_mods = false;
     std::vector<std::string> opts;
     std::string world; /** if set try to load first save in this world on startup */
@@ -309,7 +301,7 @@ cli_opts parse_commandline( int argc, const char **argv )
             },
             {
                 "--jsonverify", {},
-                "Checks the CDDA json files",
+                "Checks the CDDA json files and exits",
                 section_default,
                 0,
                 [&result]( int, const char ** ) -> int {
@@ -319,7 +311,7 @@ cli_opts parse_commandline( int argc, const char **argv )
             },
             {
                 "--check-mods", "[mod…]",
-                "Checks the json files belonging to given CDDA mod",
+                "Checks the json files belonging to given CDDA mod and exits",
                 section_default,
                 1,
                 [&result]( int n, const char **params ) -> int {
@@ -329,6 +321,16 @@ cli_opts parse_commandline( int argc, const char **argv )
                     {
                         result.opts.emplace_back( params[ i ] );
                     }
+                    return 0;
+                }
+            },
+            {
+                "--noverify", {},
+                "Skips JSON verification",
+                section_default,
+                0,
+                [&result]( int, const char ** ) -> int {
+                    result.noverify = true;
                     return 0;
                 }
             },
@@ -581,7 +583,7 @@ EM_ASYNC_JS( void, mount_idbfs, (), {
             if( err ) {
                 reject( err );
             } else {
-                console.log( "Succesfully mounted IDBFS." );
+                console.log( "Successfully mounted IDBFS." );
                 resolve();
             }
         } );
@@ -604,7 +606,7 @@ EM_ASYNC_JS( void, mount_idbfs, (), {
             if( err ) {
                 console.error( err );
             } else {
-                console.log( "Succesfully persisted to IDBFS..." );
+                console.log( "Successfully persisted to IDBFS..." );
             }
         } );
     }
@@ -733,7 +735,7 @@ int main( int argc, const char *argv[] )
     DebugLog( D_INFO, DC_ALL ) << "[main] C locale set to " << setlocale( LC_ALL, nullptr );
     DebugLog( D_INFO, DC_ALL ) << "[main] C++ locale set to " << std::locale().name();
 
-#if defined(TILES)
+#if defined(TILES) || defined(SDL_SOUND)
     SDL_version compiled;
     SDL_VERSION( &compiled );
     DebugLog( D_INFO, DC_ALL ) << "SDL version used during compile is "
@@ -789,19 +791,30 @@ int main( int argc, const char *argv[] )
         }
         if( cli.check_mods ) {
             init_colors();
-            loading_ui ui( false );
             const std::vector<mod_id> mods( cli.opts.begin(), cli.opts.end() );
-            exit( g->check_mod_data( mods, ui ) && !debug_has_error_been_observed() ? 0 : 1 );
+            exit( g->check_mod_data( mods ) && !debug_has_error_been_observed() ? 0 : 1 );
         }
     } catch( const std::exception &err ) {
         debugmsg( "%s", err.what() );
         exit_handler( -999 );
     }
 
+    // Load the colors of ImGui to match the colors set by the user.
+    cataimgui::init_colors();
+
+    // set decimal point for float input widgets
+    // uses system locale, because that's what imgui uses to parse and display floats
+    ImGui::GetPlatformIO().Platform_LocaleDecimalPoint =
+        static_cast<unsigned char>( *localeconv()->decimal_point );
+
     // Override existing settings from cli  options
     if( cli.disable_ascii_art ) {
         get_options().get_option( "ENABLE_ASCII_ART" ).setValue( "false" );
         get_options().get_option( "ENABLE_ASCII_TITLE" ).setValue( "false" );
+    }
+
+    if( cli.noverify ) {
+        get_options().get_option( "SKIP_VERIFICATION" ).setValue( "true" );
     }
 
     // Now we do the actual game.
@@ -829,6 +842,8 @@ int main( int argc, const char *argv[] )
 
 #if defined(LOCALIZE)
     if( get_option<std::string>( "USE_LANG" ).empty() && !SystemLocale::Language().has_value() ) {
+        imclient->new_frame(); // we have to prime the pump, because of reasons
+        imclient->end_frame();
         const std::string lang = select_language();
         get_options().get_option( "USE_LANG" ).setValue( lang );
         set_language_from_options();
@@ -838,8 +853,6 @@ int main( int argc, const char *argv[] )
 
     main_menu::queued_world_to_load = std::move( cli.world );
 
-    get_help().load();
-
     while( true ) {
         main_menu menu;
         if( !menu.opening_screen() ) {
@@ -848,7 +861,7 @@ int main( int argc, const char *argv[] )
 
         shared_ptr_fast<ui_adaptor> ui = g->create_or_get_main_ui_adaptor();
         get_event_bus().send<event_type::game_begin>( getVersionString() );
-        while( !do_turn() );
+        while( !do_turn() ) {}
     }
 
     exit_handler( -999 );
